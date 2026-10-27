@@ -391,17 +391,6 @@ export const Step1SelectServices = () => {
   };
 
   const handleBackToCategories = () => {
-    if (activeCategory) {
-      const currentCatCount = selectedItemsList
-        .filter(it => it.categoryId === activeCategory)
-        .reduce((s, it) => s + it.quantity, 0);
-
-      if (currentCatCount === 0) {
-        const catName = PRICING_CATEGORIES.find(c => c.id === activeCategory)?.name || 'this category';
-        setCategoryValidationError(`Please select at least one item from ${catName} before proceeding to another category.`);
-        return;
-      }
-    }
     setCategoryValidationError(null);
     setActiveCategory(null);
     setActiveSubcategory('men');
@@ -418,17 +407,7 @@ export const Step1SelectServices = () => {
   };
 
   const handleNextStep = () => {
-    if (activeCategory) {
-      const currentCatCount = selectedItemsList
-        .filter(it => it.categoryId === activeCategory)
-        .reduce((s, it) => s + it.quantity, 0);
-
-      if (currentCatCount === 0) {
-        const catName = PRICING_CATEGORIES.find(c => c.id === activeCategory)?.name || 'this category';
-        setCategoryValidationError(`Please select at least one item from ${catName} before proceeding.`);
-        return;
-      }
-    }
+    setCategoryValidationError(null);
     if (selectedItemsList.length > 0) {
       setCurrentStep(2);
     }

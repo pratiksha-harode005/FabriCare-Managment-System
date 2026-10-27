@@ -55,14 +55,31 @@ export const CustomerAuthModal = () => {
       if (authModalMode === 'login') {
         await login(email, password);
       } else if (authModalMode === 'register') {
+        const cleanName = (fullName || '').trim();
+        if (!cleanName) {
+          throw new Error('Please enter your full name.');
+        }
+        if (cleanName.length > 25) {
+          throw new Error('Full name cannot exceed 25 characters.');
+        }
+        if (!/^[A-Za-z]+(?:\s+[A-Za-z]+)*$/.test(cleanName)) {
+          throw new Error('Full name can only contain alphabetic letters (no numbers or special characters).');
+        }
+
+        const cleanEmail = (email || '').trim().toLowerCase();
+        if (!cleanEmail || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
+          throw new Error('Please enter a valid email address (e.g., user@gmail.com).');
+        }
+
         const cleanPhone = (phone || '').replace(/\D/g, '');
-        if (cleanPhone && cleanPhone.length !== 10) {
-          throw new Error('Please enter a valid 10-digit mobile number.');
+        if (!cleanPhone || cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+          throw new Error('Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.');
         }
-        if (password.length < 6) {
-          throw new Error('Password must be at least 6 characters long.');
+
+        if (password.length < 6 || password.length > 12) {
+          throw new Error('Password must be between 6 and 12 characters long.');
         }
-        await register({ email, password, fullName, phone: cleanPhone ? `+91 ${cleanPhone}` : '' });
+        await register({ email: cleanEmail, password, fullName: cleanName, phone: `+91 ${cleanPhone}` });
       } else if (authModalMode === 'forgot') {
         await sendPasswordReset(email);
         setResetSuccess(true);
@@ -133,7 +150,8 @@ export const CustomerAuthModal = () => {
                       className="form-input" 
                       placeholder="e.g. Rohan Mehta"
                       value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      maxLength={25}
+                      onChange={(e) => setFullName(e.target.value.replace(/[^A-Za-z\s]/g, '').slice(0, 25))}
                     />
                   </div>
                 </div>

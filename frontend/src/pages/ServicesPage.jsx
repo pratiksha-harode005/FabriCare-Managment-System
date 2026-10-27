@@ -240,9 +240,20 @@ const LessFreshWaterIcon = ({ size = 32, color = '#087F8C' }) => (
 );
 
 export const ServicesPage = () => {
-  const { startBooking } = useBooking();
+  const { startBooking, navigateTo, setCurrentStep } = useBooking();
   const [openFaq, setOpenFaq] = useState(0);
   const faqListRef = useRef(null);
+
+  const handleBookNow = () => {
+    if (typeof setCurrentStep === 'function') {
+      setCurrentStep(1);
+    }
+    if (typeof navigateTo === 'function') {
+      navigateTo('booking');
+    } else if (typeof startBooking === 'function') {
+      startBooking(1);
+    }
+  };
 
   useEffect(() => {
     if (openFaq === null) return;
@@ -522,35 +533,45 @@ export const ServicesPage = () => {
       </section>
 
       {/* 5. TRUST CTA BANNER */}
-      <section className="trust-cta-section">
+      <section className="trust-cta-section" aria-label="Book laundry service">
         <div className="container">
-          <div
-            className="trust-cta-banner-card"
-            onClick={() => startBooking('dry-cleaning')}
-            role="button"
-            tabIndex={0}
-            aria-label="Trust us for keeping your clothes as good as new - Book Now"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                startBooking('dry-cleaning');
-              }
-            }}
-          >
-            <img
-              src="/assets/cta-banner-exact.png"
-              srcSet="/assets/cta-banner-exact.png 1x, /assets/cta-banner-exact-2x.png 2x"
-              alt="Trust us for keeping your clothes as good as new - Book Now"
-              className="trust-cta-exact-img"
-            />
-            <button
-              type="button"
-              className="trust-cta-hotspot-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                startBooking('dry-cleaning');
-              }}
-              aria-label="Book Now"
-            />
+          <div className="trust-cta-banner-card">
+            {/* Left: Headline Text */}
+            <div className="trust-cta-text-content">
+              <h2 className="trust-cta-headline">
+                Trust us for keeping your clothes{' '}
+                <span className="trust-cta-highlight">as good as new</span>
+              </h2>
+            </div>
+
+            {/* Right: Action Group (Image on LHS + Book Now button on RHS) */}
+            <div className="trust-cta-action-group">
+              {/* Fresh Folded Laundry Artwork (just on the LHS of Book Now button) */}
+              <div className="trust-cta-image-wrapper">
+                <picture>
+                  <source srcSet="/assets/fresh-laundry-stack.webp" type="image/webp" />
+                  <img
+                    src="/assets/fresh-laundry-stack.png"
+                    alt="Neatly folded clothes stack with green leaf"
+                    className="trust-cta-laundry-image"
+                    loading="lazy"
+                  />
+                </picture>
+              </div>
+
+              {/* Real Functional Action Button */}
+              <div className="trust-cta-action-wrapper">
+                <button
+                  type="button"
+                  className="trust-cta-book-button"
+                  onClick={handleBookNow}
+                  aria-label="Book dry cleaning and laundry service now"
+                >
+                  <span>Book Now</span>
+                  <ArrowRight size={17} className="trust-cta-btn-arrow" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -627,7 +648,7 @@ export const ServicesPage = () => {
             <button
               type="button"
               className="services-final-cta-btn"
-              onClick={() => startBooking('dry-cleaning')}
+              onClick={handleBookNow}
             >
               Book Your Free Pickup
             </button>
@@ -827,7 +848,7 @@ export const ServicesPage = () => {
 
         .process-timeline-wrapper {
           position: relative;
-          max-width: 1220px;
+          max-width: 100%;
           margin: 0 auto;
           padding: 10px 0 20px;
         }
@@ -958,7 +979,7 @@ export const ServicesPage = () => {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 26px;
-          max-width: 1200px;
+          max-width: 100%;
           margin: 0 auto;
         }
 
@@ -1013,52 +1034,145 @@ export const ServicesPage = () => {
         }
 
         /* ==========================================================================
-           5. TRUST CTA BANNER
+           5. TRUST CTA BANNER (56px Margins & Sleek Centered Proportion)
            ========================================================================== */
+        /* 5. TRUST CTA BANNER (56px Vertical Margin & 16-24px LHS/RHS Edge Gap) */
         .trust-cta-section {
-          padding: 20px 0 70px;
-          background: #F0F9F9;
+          padding: 56px 0;
+          margin: 0;
+          background: transparent;
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+        .trust-cta-section .container {
+          width: 100% !important;
+          max-width: 100% !important;
+          padding: 0 24px !important;
+          margin: 0 auto !important;
+          box-sizing: border-box !important;
         }
 
         .trust-cta-banner-card {
-          max-width: 1040px;
-          margin: 0 auto;
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 0 auto !important;
+          box-sizing: border-box !important;
+          background: #E8F8F9;
+          background: linear-gradient(90deg, #EAF8F9 0%, #DDF4F5 50%, #EAF8F9 100%);
+          border: 1px solid rgba(8, 127, 140, 0.16);
+          border-radius: 24px;
+          box-shadow: 0 12px 36px rgba(8, 127, 140, 0.09);
+          padding: 38px 48px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 32px;
           position: relative;
-          cursor: pointer;
-          transition: transform 0.25s ease;
+          overflow: hidden;
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
         }
 
         .trust-cta-banner-card:hover {
-          transform: translateY(-3px);
+          transform: translateY(-2px);
+          box-shadow: 0 14px 40px rgba(8, 127, 140, 0.13);
         }
 
-        .trust-cta-exact-img {
-          width: 100%;
-          height: auto;
+        .trust-cta-text-content {
+          flex: 1 1 auto;
+          min-width: 260px;
+        }
+
+        .trust-cta-headline {
+          font-family: 'Poppins', sans-serif;
+          font-size: clamp(23px, 2.3vw, 32px);
+          font-weight: 800;
+          color: #0F2935;
+          line-height: 1.25;
+          margin: 0;
+          letter-spacing: -0.02em;
+        }
+
+        .trust-cta-highlight {
           display: block;
-          image-rendering: -webkit-optimize-contrast;
+          color: #0A808D;
+          font-weight: 800;
         }
 
-        .trust-cta-hotspot-btn {
-          position: absolute;
-          left: 80.2%;
-          top: 38%;
-          width: 12.6%;
-          height: 17%;
-          background: transparent;
+        .trust-cta-action-group {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 28px;
+          flex: 0 0 auto;
+        }
+
+        .trust-cta-image-wrapper {
+          flex: 0 0 auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+        }
+
+        .trust-cta-laundry-image {
+          height: 135px;
+          width: auto;
+          max-width: 250px;
+          object-fit: contain;
+          filter: drop-shadow(0 10px 20px rgba(8, 127, 140, 0.14));
+          display: block;
+          transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .trust-cta-banner-card:hover .trust-cta-laundry-image {
+          transform: scale(1.04) translateY(-2px);
+        }
+
+        .trust-cta-action-wrapper {
+          flex: 0 0 auto;
+          display: flex;
+          align-items: center;
+        }
+
+        .trust-cta-book-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 9px;
+          background: #FF6652;
+          background: linear-gradient(135deg, #FF705C 0%, #FF563E 100%);
+          color: #FFFFFF;
+          font-family: 'Poppins', sans-serif;
+          font-size: 15.5px;
+          font-weight: 700;
+          line-height: 1;
+          padding: 15px 30px;
+          border-radius: 12px;
           border: none;
           cursor: pointer;
-          z-index: 2;
-          border-radius: 999px;
-          color: transparent;
-          font-size: 0;
-          line-height: 0;
-          overflow: hidden;
-          transition: all 0.2s ease;
+          white-space: nowrap;
+          box-shadow: 0 6px 20px rgba(255, 86, 62, 0.35);
+          transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .trust-cta-hotspot-btn:focus-visible {
-          outline: 2px solid #FF6247;
+        .trust-cta-book-button:hover {
+          transform: translateY(-2px);
+          background: linear-gradient(135deg, #FF7E6B 0%, #FF492F 100%);
+          box-shadow: 0 10px 26px rgba(255, 86, 62, 0.45);
+        }
+
+        .trust-cta-book-button:active {
+          transform: translateY(0) scale(0.98);
+          box-shadow: 0 4px 12px rgba(255, 86, 62, 0.3);
+        }
+
+        .trust-cta-btn-arrow {
+          transition: transform 0.2s ease;
+        }
+
+        .trust-cta-book-button:hover .trust-cta-btn-arrow {
+          transform: translateX(4px);
         }
 
         /* ==========================================================================
@@ -1245,8 +1359,26 @@ export const ServicesPage = () => {
           .process-timeline-line {
             display: none;
           }
+          .trust-cta-section .container {
+            padding: 0 20px !important;
+          }
           .trust-cta-banner-card {
-            padding: 0;
+            padding: 28px 36px;
+            gap: 24px;
+          }
+          .trust-cta-headline {
+            font-size: 24px;
+          }
+          .trust-cta-action-group {
+            gap: 20px;
+          }
+          .trust-cta-laundry-image {
+            height: 115px;
+            max-width: 210px;
+          }
+          .trust-cta-book-button {
+            padding: 13px 24px;
+            font-size: 14.5px;
           }
         }
 
@@ -1493,20 +1625,50 @@ export const ServicesPage = () => {
 
           /* Part 4: Trust CTA Banner Card */
           .trust-cta-section {
-            padding: 10px 0 44px !important;
-            background: #FFFFFF !important;
+            margin: 32px 0 !important;
+            padding: 0 !important;
+          }
+          .trust-cta-section .container {
+            padding: 0 16px !important;
           }
           .trust-cta-banner-card {
-            max-width: 440px !important;
-            margin: 0 auto !important;
-            border-radius: 20px !important;
-            overflow: hidden !important;
-            box-shadow: 0 8px 24px rgba(8, 127, 140, 0.12) !important;
-          }
-          .trust-cta-exact-img {
+            flex-direction: column !important;
+            text-align: center !important;
+            padding: 30px 22px !important;
+            border-radius: 18px !important;
+            gap: 20px !important;
+            max-width: 100% !important;
             width: 100% !important;
-            height: auto !important;
-            display: block !important;
+            margin: 0 auto !important;
+          }
+          .trust-cta-text-content {
+            max-width: 100% !important;
+            min-width: unset !important;
+          }
+          .trust-cta-headline {
+            font-size: 21px !important;
+          }
+          .trust-cta-action-group {
+            flex-direction: column !important;
+            width: 100% !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 16px !important;
+          }
+          .trust-cta-laundry-image {
+            height: 110px !important;
+            max-width: 220px !important;
+            margin: 4px 0 !important;
+          }
+          .trust-cta-action-wrapper {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .trust-cta-book-button {
+            width: 100% !important;
+            max-width: 280px !important;
+            padding: 14px 24px !important;
+            font-size: 15px !important;
           }
 
           /* FAQ mobile */

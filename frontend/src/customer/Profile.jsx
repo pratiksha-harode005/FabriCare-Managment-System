@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { addressApi } from '../api/apiClient';
+import { addressApi, authApi } from '../api/apiClient';
 import { 
   User, 
   MapPin, 
@@ -11,7 +11,8 @@ import {
   Edit3,
   Home, 
   Briefcase, 
-  RefreshCw 
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 
 export const Profile = () => {
@@ -37,6 +38,14 @@ export const Profile = () => {
     name: '',
     phone: '',
     city: ''
+  });
+  const [profileErrors, setProfileErrors] = useState({
+    name: '',
+    phone: ''
+  });
+  const [profileTouched, setProfileTouched] = useState({
+    name: false,
+    phone: false
   });
   const [savingProfile, setSavingProfile] = useState(false);
   const editProfileModalRef = useRef(null);
@@ -144,21 +153,141 @@ export const Profile = () => {
       (firstName ? firstName[0].toUpperCase() : 
         (username ? username[0].toUpperCase() : 'C')));
 
+  // 1. Full Name Validator: Alphabetic only (and spaces between words), max 25 chars. No numbers or special characters.
+  const validateFullName = (name) => {
+    const val = (name || '').trim();
+    if (!val) {
+      return 'Please enter your full name.';
+    }
+    if (name.length > 25 || val.length > 25) {
+      return 'Full name cannot exceed 25 characters.';
+    }
+    if (!/^[A-Za-z]+(?:\s+[A-Za-z]+)*$/.test(val)) {
+      return 'Full name can only contain alphabetic characters (no numbers or special characters).';
+    }
+    return '';
+  };
+
+  // 2. Mobile Number Validator: 10 digits starting with 6, 7, 8, or 9
+  const validatePhone = (val) => {
+    const digits = (val || '').replace(/\D/g, '');
+    if (!digits) {
+      return 'Please enter your 10-digit mobile number.';
+    }
+    if (!/^[6-9]/.test(digits)) {
+      return 'Mobile number must start with 6, 7, 8, or 9.';
+    }
+    if (digits.length !== 10) {
+      return 'Mobile number must be exactly 10 digits.';
+    }
+    return '';
+  };
+
+  const handleNameChange = (e) => {
+    const raw = e.target.value;
+    // Allow only alphabetic characters and spaces, max 25 characters
+    let filtered = raw.replace(/[^A-Za-z\s]/g, '');
+    filtered = filtered.replace(/^\s+/, '');
+    filtered = filtered.slice(0, 25);
+    setProfileForm(prev => ({ ...prev, name: filtered }));
+    if (profileTouched.name) {
+      setProfileErrors(prev => ({ ...prev, name: validateFullName(filtered) }));
+    }
+  };
+
+  const handlePhoneChange = (e) => {
+    // Disallow letters or special characters, allow only numeric digits
+    let digits = e.target.value.replace(/\D/g, '');
+
+    // Strip leading 91 if pasted with India country code
+    if (digits.startsWith('91') && digits.length === 12) {
+      digits = digits.slice(2);
+    } else if (digits.startsWith('0') && digits.length > 1) {
+      digits = digits.replace(/^0+/, '');
+    }
+
+    // Number must start only with 6, 7, 8, or 9 (reject 0, 1, 2, 3, 4, 5)
+    if (digits.length > 0 && !/^[6-9]/.test(digits)) {
+      digits = digits.replace(/^[^6-9]+/, '');
+      setProfileTouched(prev => ({ ...prev, phone: true }));
+      setProfileErrors(prev => ({ ...prev, phone: 'Mobile number must start with 6, 7, 8, or 9.' }));
+      setProfileForm(prev => ({ ...prev, phone: digits }));
+      return;
+    }
+
+    digits = digits.slice(0, 10);
+    setProfileForm(prev => ({ ...prev, phone: digits }));
+    if (profileTouched.phone) {
+      setProfileErrors(prev => ({ ...prev, phone: validatePhone(digits) }));
+    } else if (digits.length === 10) {
+      setProfileErrors(prev => ({ ...prev, phone: '' }));
+    }
+  };
+
+  const handleBlur = (field) => {
+    setProfileTouched(prev => ({ ...prev, [field]: true }));
+    if (field === 'name') {
+      setProfileErrors(prev => ({ ...prev, name: validateFullName(profileForm.name) }));
+    }
+    if (field === 'phone') {
+      setProfileErrors(prev => ({ ...prev, phone: validatePhone(profileForm.phone) }));
+    }
+  };
+
   const handleOpenEditProfileModal = () => {
+    let cleanInitialPhone = (phone || '').replace(/\D/g, '');
+    if (cleanInitialPhone.startsWith('91') && cleanInitialPhone.length === 12) {
+      cleanInitialPhone = cleanInitialPhone.slice(2);
+    }
+    cleanInitialPhone = cleanInitialPhone.slice(0, 10);
+
+    const cleanInitialName = (fullName || '').replace(/[^A-Za-z\s]/g, '').slice(0, 25);
+
     setProfileForm({
-      name: fullName || '',
-      phone: phone || '',
+      name: cleanInitialName,
+      phone: cleanInitialPhone,
       city: profileUser?.city || (addresses.find(a => a.is_default) || addresses[0])?.city || 'Bengaluru'
     });
+    setProfileErrors({ name: '', phone: '' });
+    setProfileTouched({ name: false, phone: false });
     setShowEditProfileModal(true);
   };
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
+
+    setProfileTouched({ name: true, phone: true });
+    const nameErr = validateFullName(profileForm.name);
+    const phoneErr = validatePhone(profileForm.phone);
+    setProfileErrors({ name: nameErr, phone: phoneErr });
+
+    if (nameErr || phoneErr) {
+      return;
+    }
+
     setSavingProfile(true);
     try {
+      const payload = {
+        ...profileForm,
+        name: profileForm.name.trim(),
+        full_name: profileForm.name.trim(),
+        fullName: profileForm.name.trim(),
+        phone: profileForm.phone.trim()
+      };
+
       if (typeof updateCurrentUserProfile === 'function') {
-        await updateCurrentUserProfile(profileForm);
+        await updateCurrentUserProfile(payload);
+      }
+      try {
+        if (authApi?.updateProfile) {
+          await authApi.updateProfile({
+            full_name: profileForm.name.trim(),
+            phone: profileForm.phone.trim(),
+            city: profileForm.city?.trim()
+          });
+        }
+      } catch (apiErr) {
+        console.warn('Backend updateProfile sync notice:', apiErr);
       }
       if (typeof refreshProfile === 'function') {
         await refreshProfile();
@@ -479,26 +608,58 @@ export const Profile = () => {
             </h3>
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div>
-                <label className="form-label">Full Name *</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="form-label mb-0">Full Name *</label>
+                  <span className={`text-xs ${profileForm.name.length >= 25 ? 'text-amber-600 font-semibold' : 'text-muted'}`}>
+                    {(profileForm.name || '').length}/25
+                  </span>
+                </div>
                 <input 
                   type="text"
                   required
+                  maxLength={25}
                   value={profileForm.name}
-                  onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                  onChange={handleNameChange}
+                  onBlur={() => handleBlur('name')}
                   placeholder="Enter your full name"
-                  className="form-input"
+                  className={`form-input ${profileTouched.name && profileErrors.name ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : ''}`}
                 />
+                {profileTouched.name && profileErrors.name && (
+                  <div className="flex items-center gap-1.5 text-xs text-red-600 mt-1.5" role="alert">
+                    <AlertCircle size={13} className="shrink-0" />
+                    <span>{profileErrors.name}</span>
+                  </div>
+                )}
               </div>
 
               <div>
-                <label className="form-label">Phone Number</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="form-label mb-0">Mobile Number *</label>
+                  <span className={`text-xs ${profileForm.phone.length === 10 ? 'text-teal-600 font-semibold' : 'text-muted'}`}>
+                    {(profileForm.phone || '').length}/10
+                  </span>
+                </div>
                 <input 
                   type="tel"
+                  inputMode="numeric"
+                  required
+                  maxLength={10}
                   value={profileForm.phone}
-                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                  placeholder="Enter phone number"
-                  className="form-input"
+                  onChange={handlePhoneChange}
+                  onBlur={() => handleBlur('phone')}
+                  placeholder="Enter 10-digit mobile number"
+                  className={`form-input ${profileTouched.phone && profileErrors.phone ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : ''}`}
                 />
+                {profileTouched.phone && profileErrors.phone ? (
+                  <div className="flex items-center gap-1.5 text-xs text-red-600 mt-1.5" role="alert">
+                    <AlertCircle size={13} className="shrink-0" />
+                    <span>{profileErrors.phone}</span>
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-muted block mt-1">
+                    10-digit mobile number starting with 6, 7, 8, or 9
+                  </span>
+                )}
               </div>
 
               <div>

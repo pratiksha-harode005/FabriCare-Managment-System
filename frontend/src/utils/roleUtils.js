@@ -29,6 +29,6 @@ export const getPortalForRole = (role) => {
       return 'laundry-portal';
     case 'customer':
     default:
-      return 'customer-dashboard';
+      return 'home';
   }
 };

@@ -879,19 +879,20 @@ export const BookingProvider = ({ children }) => {
   }, []);
 
   const startBooking = (targetStep = null) => {
-    if (!isAuthenticated) {
-      sessionStorage.setItem('fabricare_intended_destination', 'booking');
-      navigateTo('login');
-      return;
-    }
-    if (targetStep) {
-      setCurrentStep(targetStep);
-    } else if (selectedItemsList.length > 0) {
-      setCurrentStep(2);
-    } else {
-      setCurrentStep(1);
-    }
+    const stepNum = typeof targetStep === 'number' ? targetStep : 1;
+    setCurrentStep(stepNum);
     setCurrentPage('booking');
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname && window.location.pathname !== '/') {
+        try {
+          window.history.replaceState(null, '', `/#booking`);
+        } catch (_) {
+          window.location.hash = 'booking';
+        }
+      } else {
+        window.location.hash = 'booking';
+      }
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

@@ -48,41 +48,86 @@ export const mapAuthError = (error) => {
  * Security Notice: Public self-registration strictly assigns role = 'customer'
  */
 export const registerUser = async ({ email, password, fullName, phone = '' }) => {
+  const cleanName = (fullName || '').trim();
+  const cleanEmail = (email || '').trim().toLowerCase();
+  let cleanPhone = (phone || '').replace(/\D/g, '');
+  if (cleanPhone.startsWith('91') && cleanPhone.length === 12) {
+    cleanPhone = cleanPhone.slice(2);
+  }
+
+  // 1. Full name: alphabetic characters only, max 25 characters
+  if (!cleanName) {
+    throw new Error('Please enter your full name.');
+  }
+  if (cleanName.length > 25) {
+    throw new Error('Full name cannot exceed 25 characters.');
+  }
+  if (!/^[A-Za-z]+(?:\s+[A-Za-z]+)*$/.test(cleanName)) {
+    throw new Error('Full name can only contain alphabetic characters (no numbers or special characters).');
+  }
+
+  // 2. Email Address: valid email format
+  if (!cleanEmail) {
+    throw new Error('Please enter your email address.');
+  }
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(cleanEmail)) {
+    throw new Error('Please enter a valid email address (e.g., user@gmail.com).');
+  }
+
+  // 3. Mobile Number: 10 digits starting with 6, 7, 8, or 9
+  if (!cleanPhone) {
+    throw new Error('Please enter your mobile number.');
+  }
+  if (cleanPhone.length !== 10) {
+    throw new Error('Mobile number must be exactly 10 digits.');
+  }
+  if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+    throw new Error('Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.');
+  }
+
+  // 4. Password: min 6, max 12 characters
+  if (!password || password.length < 6) {
+    throw new Error('Password must be at least 6 characters long.');
+  }
+  if (password.length > 12) {
+    throw new Error('Password cannot exceed 12 characters.');
+  }
+
   if (!isFirebaseConfigured || !auth || !rtdb) {
     throw new Error('Firebase Authentication is not configured.');
   }
   try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
     const user = userCredential.user;
 
-    const cleanName = fullName ? fullName.trim() : (user.displayName || 'Customer');
+    const resolvedName = cleanName || user.displayName || 'Customer';
 
-    if (cleanName) {
-      await updateProfile(user, { displayName: cleanName });
+    if (resolvedName) {
+      await updateProfile(user, { displayName: resolvedName });
     }
 
-    const nameParts = cleanName.split(' ');
-    const firstName = nameParts[0] || cleanName;
+    const nameParts = resolvedName.split(' ');
+    const firstName = nameParts[0] || resolvedName;
     const lastName = nameParts.slice(1).join(' ') || '';
-    const cleanEmail = (user.email || email || '').trim().toLowerCase();
-    const username = cleanEmail ? cleanEmail.split('@')[0] : cleanName.toLowerCase().replace(/\s+/g, '');
-    const cleanPhone = phone ? phone.trim() : (user.phoneNumber || '');
+    const username = cleanEmail ? cleanEmail.split('@')[0] : resolvedName.toLowerCase().replace(/\s+/g, '');
+    const userPhone = cleanPhone || (user.phoneNumber || '');
 
     const userRef = ref(rtdb, `users/${user.uid}`);
     const profileData = {
-      name: cleanName,
-      full_name: cleanName,
-      fullName: cleanName,
-      displayName: cleanName,
+      name: resolvedName,
+      full_name: resolvedName,
+      fullName: resolvedName,
+      displayName: resolvedName,
       first_name: firstName,
       last_name: lastName,
       username: username,
       email: cleanEmail,
-      phone: cleanPhone,
-      phoneNumber: cleanPhone,
+      phone: userPhone,
+      phoneNumber: userPhone,
       role: 'customer',
       isActive: true,
-      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=0D9488&color=fff`,
+      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedName)}&background=0D9488&color=fff`,
       createdAt: Date.now()
     };
 

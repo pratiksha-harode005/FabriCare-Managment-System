@@ -121,6 +121,34 @@ class UserSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Profile image exceeds maximum allowed size of 5 MB.")
         return file_obj
 
+    def validate_full_name(self, value):
+        if value is None:
+            return value
+        val = str(value).strip()
+        if not val:
+            raise serializers.ValidationError("Full name is required.")
+        if len(val) > 25:
+            raise serializers.ValidationError("Full name cannot exceed 25 characters.")
+        if not re.match(r'^[A-Za-z]+(?:\s+[A-Za-z]+)*$', val):
+            raise serializers.ValidationError("Full name can only contain alphabetic characters (no numbers or special characters).")
+        return val
+
+    def validate_phone(self, value):
+        if value is None or str(value).strip() == '':
+            return value
+        val = str(value).strip()
+        clean_digits = re.sub(r'\D', '', val)
+        if clean_digits.startswith('91') and len(clean_digits) == 12:
+            clean_digits = clean_digits[2:]
+
+        if not clean_digits:
+            raise serializers.ValidationError("Mobile number is required.")
+        if len(clean_digits) != 10:
+            raise serializers.ValidationError("Mobile number must be exactly 10 digits.")
+        if not clean_digits[0] in ['6', '7', '8', '9']:
+            raise serializers.ValidationError("Mobile number must start with 6, 7, 8, or 9.")
+        return clean_digits
+
     def update(self, instance, validated_data):
         full_name = validated_data.pop('full_name', None)
         if full_name is not None:
@@ -163,15 +191,71 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=6)
-    full_name = serializers.CharField(write_only=True, required=False)
+    username = serializers.CharField(required=False, allow_blank=True)
+    password = serializers.CharField(write_only=True, min_length=6, max_length=12)
+    full_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    name = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'password', 'full_name', 'phone', 'role', 'city', 'address', 'pincode')
+        fields = ('username', 'email', 'password', 'full_name', 'name', 'phone', 'role', 'city', 'address', 'pincode')
+
+    def validate_full_name(self, value):
+        val = (value or '').strip()
+        if not val:
+            raise serializers.ValidationError("Full name is required.")
+        if len(val) > 25:
+            raise serializers.ValidationError("Full name cannot exceed 25 characters.")
+        if not re.match(r'^[A-Za-z]+(?:\s+[A-Za-z]+)*$', val):
+            raise serializers.ValidationError("Full name can only contain alphabetic characters (no numbers or special characters).")
+        return val
+
+    def validate_name(self, value):
+        return self.validate_full_name(value)
+
+    def validate_email(self, value):
+        val = (value or '').strip().lower()
+        if not val:
+            raise serializers.ValidationError("Email address is required.")
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_regex, val):
+            raise serializers.ValidationError("Please enter a valid email address (e.g., user@gmail.com).")
+        if User.objects.filter(email__iexact=val).exists():
+            raise serializers.ValidationError("An account with this email address already exists. Please sign in or use a different email.")
+        return val
+
+    def validate_phone(self, value):
+        val = (value or '').strip()
+        # Remove country code or non-digit chars
+        clean_digits = re.sub(r'\D', '', val)
+        if clean_digits.startswith('91') and len(clean_digits) == 12:
+            clean_digits = clean_digits[2:]
+
+        if not clean_digits:
+            raise serializers.ValidationError("Mobile number is required.")
+        if len(clean_digits) != 10:
+            raise serializers.ValidationError("Mobile number must be exactly 10 digits.")
+        if not clean_digits[0] in ['6', '7', '8', '9']:
+            raise serializers.ValidationError("Mobile number must start with 6, 7, 8, or 9.")
+        return clean_digits
+
+    def validate_password(self, value):
+        if not value or len(value) < 6:
+            raise serializers.ValidationError("Password must be at least 6 characters long.")
+        if len(value) > 12:
+            raise serializers.ValidationError("Password cannot exceed 12 characters.")
+        return value
+
+    def validate(self, attrs):
+        name_val = attrs.get('full_name') or attrs.get('name')
+        if not name_val:
+            raise serializers.ValidationError({"full_name": "Full name is required."})
+        if not attrs.get('username'):
+            attrs['username'] = attrs.get('email')
+        return attrs
 
     def create(self, validated_data):
-        full_name = validated_data.pop('full_name', '')
+        full_name = validated_data.pop('full_name', '') or validated_data.pop('name', '')
         password = validated_data.pop('password')
         role = validated_data.get('role', User.Role.CUSTOMER)
         

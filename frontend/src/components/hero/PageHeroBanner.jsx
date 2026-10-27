@@ -87,7 +87,7 @@ export const PageHeroBanner = ({
       {!hideBlur && <div className="page-hero-blur-overlay" aria-hidden="true" />}
 
       {/* 4. Text Block (Right-aligned container on desktop, centered column) */}
-      <div className="page-hero-text-block absolute right-[6%] top-1/2 -translate-y-1/2 flex flex-col items-center text-center w-fit max-w-[46%]">
+      <div className="page-hero-text-block absolute right-[48px] top-1/2 -translate-y-1/2 flex flex-col items-center text-center w-fit max-w-[46%]">
         {eyebrow && (
           <div className="page-hero-eyebrow">
             <span className="hero-eyebrow-line" />
@@ -254,7 +254,7 @@ export const PageHeroBanner = ({
         /* 4. Text Block (Centered column over subtitle width, right-positioned on desktop) */
         .page-hero-text-block {
           position: absolute;
-          right: 6%;
+          right: 48px;
           top: 50%;
           transform: translateY(-50%);
           display: flex;
@@ -364,6 +364,7 @@ export const PageHeroBanner = ({
 
         @media (max-width: 1023px) and (min-width: 769px) {
           .page-hero-text-block {
+            right: 32px;
             max-width: 48%;
             min-width: unset;
           }

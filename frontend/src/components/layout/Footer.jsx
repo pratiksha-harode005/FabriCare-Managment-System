@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useBooking } from '../../context/BookingContext';
 import { useAdmin } from '../../context/AdminContext';
 import {
@@ -10,13 +11,31 @@ import {
   Clock,
   Mail,
   ArrowRight,
-  X
+  X,
+  ShieldCheck,
+  FileText
 } from 'lucide-react';
 
 export const Footer = () => {
   const { navigateTo, startBooking } = useBooking();
   const { settings } = useAdmin();
   const [activeLegalModal, setActiveLegalModal] = useState(null);
+
+  // Lock background scroll and listen for Escape key when legal modal is open
+  useEffect(() => {
+    if (activeLegalModal) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') setActiveLegalModal(null);
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [activeLegalModal]);
 
   const instagramUrl = settings?.instagram || 'https://instagram.com/fabricare';
   const facebookUrl = settings?.facebook || 'https://facebook.com/fabricare';
@@ -183,16 +202,6 @@ export const Footer = () => {
                   Contact Us
                 </button>
               </li>
-              <li>
-                <button
-                  type="button"
-                  className="footer-nav-link"
-                  onClick={() => handleLinkClick('delivery-portal')}
-                  style={{ color: '#0D7A75', fontWeight: 600 }}
-                >
-                  🚚 Delivery Portal
-                </button>
-              </li>
             </ul>
           </div>
 
@@ -321,62 +330,118 @@ export const Footer = () => {
         </div>
       </div>
 
-      {/* Legal Modal (Privacy Policy & Terms) */}
-      {activeLegalModal && (
+      {/* Legal Modal (Privacy Policy & Terms) - Rendered into body via createPortal */}
+      {activeLegalModal && typeof document !== 'undefined' && createPortal(
         <div 
-          className="legal-modal-backdrop animate-fade-in" 
+          className="legal-modal-backdrop" 
           onClick={() => setActiveLegalModal(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="legal-modal-title"
         >
           <div className="legal-modal-card" onClick={e => e.stopPropagation()}>
             <div className="legal-modal-header">
-              <h3 className="legal-modal-title">
-                {activeLegalModal === 'privacy' ? 'Privacy Policy' : 'Terms & Conditions'}
-              </h3>
+              <div className="legal-modal-header-left">
+                <div className="legal-modal-icon-bubble">
+                  {activeLegalModal === 'privacy' ? (
+                    <ShieldCheck size={22} color="#087F8C" strokeWidth={2.3} />
+                  ) : (
+                    <FileText size={22} color="#087F8C" strokeWidth={2.3} />
+                  )}
+                </div>
+                <div>
+                  <h3 id="legal-modal-title" className="legal-modal-title">
+                    {activeLegalModal === 'privacy' ? 'Privacy Policy' : 'Terms & Conditions'}
+                  </h3>
+                  <p className="legal-modal-subtitle">
+                    Last updated: October 2026 • Official Policy
+                  </p>
+                </div>
+              </div>
+
               <button 
                 type="button" 
                 className="legal-modal-close"
                 onClick={() => setActiveLegalModal(null)}
-                aria-label="Close"
+                aria-label="Close modal"
               >
-                <X size={18} strokeWidth={2.5} />
+                <X size={18} strokeWidth={2.4} />
               </button>
             </div>
+
             <div className="legal-modal-body">
               {activeLegalModal === 'privacy' ? (
                 <>
-                  <h4>1. Information We Collect</h4>
-                  <p>We collect essential personal information such as your name, mobile number, email address, and pickup/delivery address when you schedule an order or register an account.</p>
-                  <h4>2. How We Use Your Information</h4>
-                  <p>Your details are used solely to process laundry orders, schedule doorstep pickups and deliveries, send order status updates, and provide customer support.</p>
-                  <h4>3. Data Security</h4>
-                  <p>We implement stringent security measures and encryption to ensure your personal data remains private and protected. We do not sell or share personal data with external advertisers.</p>
-                  <h4>4. Contact Support</h4>
-                  <p>If you have any questions regarding your personal information, reach out to us at {supportEmail}.</p>
+                  <div className="legal-clause-card">
+                    <h4>1. Information We Collect</h4>
+                    <p>We collect essential personal information including your full name, 10-digit mobile number, email address, and pickup/delivery address when you schedule an order or create an account.</p>
+                  </div>
+                  <div className="legal-clause-card">
+                    <h4>2. How We Use Your Information</h4>
+                    <p>Your details are used solely to process your garment care orders, route doorstep pickups and deliveries, provide live tracking updates, and deliver responsive customer support.</p>
+                  </div>
+                  <div className="legal-clause-card">
+                    <h4>3. Data Security &amp; Confidentiality</h4>
+                    <p>We enforce stringent industry-standard encryption and strict access protocols to protect your personal information. We never sell, rent, or disclose personal data to third-party marketing companies.</p>
+                  </div>
+                  <div className="legal-clause-card">
+                    <h4>4. Secure Transactions</h4>
+                    <p>All payments are securely handled through certified, PCI-DSS compliant payment gateways. Sensitive payment card numbers are never stored on our servers.</p>
+                  </div>
+                  <div className="legal-clause-card">
+                    <h4>5. Customer Rights &amp; Preferences</h4>
+                    <p>You can update your personal profile, manage saved pickup addresses, or request data deletion at any time directly through your account or by contacting support.</p>
+                  </div>
+                  <div className="legal-clause-card">
+                    <h4>6. Privacy Contact</h4>
+                    <p>For any questions or concerns regarding this privacy policy or your personal data, please contact our team at <a href={`mailto:${supportEmail}`} className="legal-email-link">{supportEmail}</a>.</p>
+                  </div>
                 </>
               ) : (
                 <>
-                  <h4>1. Introduction</h4>
-                  <p>Welcome to FabriCare. These Terms & Conditions govern your use of our doorstep laundry services and platform.</p>
-                  <h4>2. Garment Care & Handling</h4>
-                  <p>Every garment is handled with utmost professional care in accordance with its fabric care label. Special care instructions should be specified during order booking.</p>
-                  <h4>3. Scheduled Pickup & Delivery</h4>
-                  <p>We provide pickup and delivery within your chosen time slots. You will receive live updates when our rider is assigned and on the way.</p>
-                  <h4>4. Cancellations & Rescheduling</h4>
-                  <p>Orders may be cancelled or rescheduled free of charge before our rider is dispatched for pickup via your customer portal or by contacting support.</p>
+                  <div className="legal-clause-card">
+                    <h4>1. Service Agreement</h4>
+                    <p>Welcome to FabriCare. By scheduling an order, booking a pickup, or using our platform, you agree to these Terms &amp; Conditions governing our doorstep laundry and garment care services.</p>
+                  </div>
+                  <div className="legal-clause-card">
+                    <h4>2. Garment Care &amp; Processing</h4>
+                    <p>Every garment is inspected and treated in strict accordance with its fabric care label and selected service category (Wash &amp; Fold, Wash &amp; Iron, Dry Cleaning, or Steam Ironing). Please ensure all pockets are emptied prior to pickup.</p>
+                  </div>
+                  <div className="legal-clause-card">
+                    <h4>3. Scheduled Pickup &amp; Delivery</h4>
+                    <p>We provide doorstep pickup and delivery within your chosen time slots. Standard service turnaround is 24 to 48 hours. Live rider tracking updates are sent once assigned.</p>
+                  </div>
+                  <div className="legal-clause-card">
+                    <h4>4. Cancellations &amp; Rescheduling</h4>
+                    <p>Pickup appointments may be rescheduled or cancelled free of charge at any time before our delivery rider is dispatched to your address.</p>
+                  </div>
+                  <div className="legal-clause-card">
+                    <h4>5. Garment Protection &amp; Claims</h4>
+                    <p>In the rare event of damage or loss, claims must be reported within 48 hours of delivery with order details and photographs. We will promptly investigate and provide fair compensation per our Garment Protection Policy.</p>
+                  </div>
+                  <div className="legal-clause-card">
+                    <h4>6. Support &amp; Inquiries</h4>
+                    <p>For any assistance or questions regarding these terms, our customer care team is available at <a href={`mailto:${supportEmail}`} className="legal-email-link">{supportEmail}</a>.</p>
+                  </div>
                 </>
               )}
             </div>
+
             <div className="legal-modal-footer">
+              <span className="legal-footer-note">
+                Need help? <a href={`mailto:${supportEmail}`} className="legal-email-link">{supportEmail}</a>
+              </span>
               <button 
                 type="button" 
                 className="legal-modal-btn"
                 onClick={() => setActiveLegalModal(null)}
               >
-                Close
+                I Understand
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <style>{`
@@ -396,13 +461,14 @@ export const Footer = () => {
           z-index: 10;
           flex-shrink: 0;
           overflow: hidden;
-          contain: paint;
         }
 
         .footer-inner-container {
-          max-width: 1320px;
+          max-width: 100%;
+          width: 100%;
           margin: 0 auto;
-          padding: 68px 32px 32px;
+          padding: 68px 48px 32px;
+          box-sizing: border-box;
         }
 
         /* 4-Column Grid with Vertical Divider Lines */
@@ -661,121 +727,247 @@ export const Footer = () => {
           color: #FFFFFF;
         }
 
-        /* Legal Modal */
+        /* Legal Modal (Professional Portal-rendered design) */
         .legal-modal-backdrop {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          background: rgba(7, 26, 36, 0.75);
-          backdrop-filter: blur(4px);
-          z-index: 99999;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 20px;
-          box-sizing: border-box;
+          position: fixed !important;
+          inset: 0 !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          background: rgba(7, 26, 36, 0.72) !important;
+          backdrop-filter: blur(8px) !important;
+          -webkit-backdrop-filter: blur(8px) !important;
+          z-index: 999999 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          padding: 24px !important;
+          box-sizing: border-box !important;
+          animation: legalModalBackdropFade 0.2s ease-out;
+        }
+
+        @keyframes legalModalBackdropFade {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
 
         .legal-modal-card {
-          background: #FFFFFF;
-          border-radius: 18px;
-          max-width: 560px;
-          width: 100%;
-          max-height: 85vh;
-          display: flex;
-          flex-direction: column;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-          overflow: hidden;
-          animation: scaleIn 0.2s ease;
+          background: #FFFFFF !important;
+          border-radius: 20px !important;
+          max-width: 660px !important;
+          width: 100% !important;
+          max-height: min(85vh, 720px) !important;
+          display: flex !important;
+          flex-direction: column !important;
+          box-shadow: 0 25px 65px -12px rgba(7, 26, 36, 0.4), 0 0 0 1px rgba(7, 26, 36, 0.08) !important;
+          overflow: hidden !important;
+          animation: legalModalCardPop 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
         }
 
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.96); }
-          to { opacity: 1; transform: scale(1); }
+        @keyframes legalModalCardPop {
+          from { opacity: 0; transform: scale(0.95) translateY(8px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
         .legal-modal-header {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          padding: 20px 28px !important;
+          border-bottom: 1px solid #E2E8F0 !important;
+          background: #FFFFFF !important;
+          flex-shrink: 0 !important;
+        }
+
+        .legal-modal-header-left {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          padding: 20px 24px;
-          border-bottom: 1px solid #E2E8F0;
+          gap: 14px;
         }
 
-        .legal-modal-title {
-          font-size: 1.15rem;
-          font-weight: 700;
-          color: #0F172A;
-          margin: 0;
-        }
-
-        .legal-modal-close {
-          background: #F1F5F9;
-          border: none;
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
+        .legal-modal-icon-bubble {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          background: #EBF8F9;
           display: flex;
           align-items: center;
           justify-content: center;
-          cursor: pointer;
-          color: #64748B;
-          transition: all 0.15s ease;
+          flex-shrink: 0;
+        }
+
+        .legal-modal-title {
+          font-family: 'Poppins', sans-serif !important;
+          font-size: 1.25rem !important;
+          font-weight: 700 !important;
+          color: #0F2935 !important;
+          margin: 0 !important;
+          line-height: 1.2 !important;
+        }
+
+        .legal-modal-subtitle {
+          font-family: 'Poppins', sans-serif !important;
+          font-size: 0.775rem !important;
+          color: #64748B !important;
+          margin: 4px 0 0 0 !important;
+          font-weight: 500 !important;
+        }
+
+        .legal-modal-close {
+          background: #F1F5F9 !important;
+          border: none !important;
+          width: 36px !important;
+          height: 36px !important;
+          border-radius: 50% !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          cursor: pointer !important;
+          color: #64748B !important;
+          transition: all 0.18s ease !important;
+          flex-shrink: 0 !important;
         }
 
         .legal-modal-close:hover {
-          background: #E2E8F0;
-          color: #0F172A;
+          background: #E2E8F0 !important;
+          color: #0F2935 !important;
+          transform: rotate(90deg);
         }
 
         .legal-modal-body {
-          padding: 24px;
-          overflow-y: auto;
-          color: #334155;
-          font-size: 0.9rem;
-          line-height: 1.6;
+          padding: 24px 28px !important;
+          overflow-y: auto !important;
+          overscroll-behavior: contain;
+          flex: 1 1 auto;
+          scrollbar-width: thin;
+          scrollbar-color: #CBD5E1 transparent;
         }
 
-        .legal-modal-body h4 {
-          font-size: 0.95rem;
-          font-weight: 700;
-          color: #0F172A;
-          margin: 16px 0 6px 0;
+        .legal-modal-body::-webkit-scrollbar {
+          width: 6px;
         }
 
-        .legal-modal-body h4:first-child {
-          margin-top: 0;
+        .legal-modal-body::-webkit-scrollbar-track {
+          background: transparent;
         }
 
-        .legal-modal-body p {
-          margin: 0 0 12px 0;
-          color: #64748B;
+        .legal-modal-body::-webkit-scrollbar-thumb {
+          background: #CBD5E1;
+          border-radius: 10px;
+        }
+
+        .legal-modal-body::-webkit-scrollbar-thumb:hover {
+          background: #94A3B8;
+        }
+
+        .legal-clause-card {
+          background: #F8FAFC !important;
+          border: 1px solid #EAEFF5 !important;
+          border-radius: 12px !important;
+          padding: 16px 20px !important;
+          margin-bottom: 14px !important;
+          transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .legal-clause-card:hover {
+          background: #FFFFFF !important;
+          border-color: #BCEAE6 !important;
+          box-shadow: 0 4px 14px rgba(8, 127, 140, 0.05);
+        }
+
+        .legal-clause-card:last-child {
+          margin-bottom: 0 !important;
+        }
+
+        .legal-clause-card h4 {
+          font-family: 'Poppins', sans-serif !important;
+          font-size: 0.95rem !important;
+          font-weight: 700 !important;
+          color: #0F2935 !important;
+          margin: 0 0 6px 0 !important;
+        }
+
+        .legal-clause-card p {
+          font-family: 'Poppins', sans-serif !important;
+          font-size: 0.85rem !important;
+          line-height: 1.6 !important;
+          color: #475569 !important;
+          margin: 0 !important;
+        }
+
+        .legal-email-link {
+          color: #087F8C !important;
+          font-weight: 600 !important;
+          text-decoration: underline !important;
         }
 
         .legal-modal-footer {
-          padding: 16px 24px;
-          border-top: 1px solid #E2E8F0;
-          display: flex;
-          justify-content: flex-end;
-          background: #F8FAFC;
+          padding: 16px 28px !important;
+          border-top: 1px solid #E2E8F0 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          background: #F8FAFC !important;
+          flex-shrink: 0 !important;
+        }
+
+        .legal-footer-note {
+          font-size: 0.8rem;
+          color: #64748B;
         }
 
         .legal-modal-btn {
-          background: #0D7A75;
-          color: #FFFFFF;
-          border: none;
-          padding: 9px 22px;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 0.875rem;
-          cursor: pointer;
-          transition: background 0.15s ease;
+          background: #087F8C !important;
+          background: linear-gradient(135deg, #0A8E9D 0%, #087F8C 100%) !important;
+          color: #FFFFFF !important;
+          border: none !important;
+          padding: 10px 24px !important;
+          border-radius: 10px !important;
+          font-family: 'Poppins', sans-serif !important;
+          font-weight: 600 !important;
+          font-size: 0.875rem !important;
+          cursor: pointer !important;
+          box-shadow: 0 4px 12px rgba(8, 127, 140, 0.25) !important;
+          transition: all 0.18s ease !important;
         }
 
         .legal-modal-btn:hover {
-          background: #095D59;
+          background: linear-gradient(135deg, #0BA0B1 0%, #07727E 100%) !important;
+          box-shadow: 0 6px 18px rgba(8, 127, 140, 0.35) !important;
+          transform: translateY(-1px);
+        }
+
+        .legal-modal-btn:active {
+          transform: translateY(0);
+        }
+
+        @media (max-width: 640px) {
+          .legal-modal-backdrop {
+            padding: 16px !important;
+          }
+          .legal-modal-card {
+            border-radius: 16px !important;
+            max-height: 90vh !important;
+          }
+          .legal-modal-header {
+            padding: 16px 20px !important;
+          }
+          .legal-modal-body {
+            padding: 18px 20px !important;
+          }
+          .legal-modal-footer {
+            padding: 14px 20px !important;
+            flex-direction: column !important;
+            gap: 12px !important;
+            align-items: stretch !important;
+          }
+          .legal-footer-note {
+            text-align: center;
+          }
+          .legal-modal-btn {
+            width: 100% !important;
+          }
         }
 
         .footer-legal-divider {
@@ -785,6 +977,9 @@ export const Footer = () => {
 
         /* Responsive Breakpoints */
         @media (max-width: 1080px) and (min-width: 769px) {
+          .footer-inner-container {
+            padding: 60px 32px 32px;
+          }
           .footer-main-grid {
             grid-template-columns: 1fr 1fr;
             gap: 40px 24px;

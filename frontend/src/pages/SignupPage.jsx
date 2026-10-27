@@ -33,23 +33,149 @@ export const SignupPage = () => {
   const [infoNotice, setInfoNotice] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  // If already authenticated as customer, redirect
+  // Field-level error messages
+  const [fieldErrors, setFieldErrors] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    password: ''
+  });
+
+  // Track if fields have been touched by user
+  const [touched, setTouched] = useState({
+    fullName: false,
+    email: false,
+    phone: false,
+    password: false
+  });
+
+  // 1. Full Name Validator: Alphabetic only, max 25 chars. No numbers or special characters.
+  const validateFullName = (name) => {
+    const val = (name || '').trim();
+    if (!val) {
+      return 'Please enter your full name.';
+    }
+    if (name.length > 25 || val.length > 25) {
+      return 'Full name cannot exceed 25 characters.';
+    }
+    // Must contain only letters and single spaces between words
+    if (!/^[A-Za-z]+(?:\s+[A-Za-z]+)*$/.test(val)) {
+      return 'Full name can only contain alphabetic letters (no numbers or special characters).';
+    }
+    return '';
+  };
+
+  // 2. Email Address Validator: Proper email format (e.g. user@gmail.com)
+  const validateEmail = (val) => {
+    const trimmed = (val || '').trim();
+    if (!trimmed) {
+      return 'Please enter your email address.';
+    }
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(trimmed)) {
+      return 'Please enter a valid email address (e.g., user@gmail.com).';
+    }
+    return '';
+  };
+
+  // 3. Mobile Number Validator: 10 digits starting with 6, 7, 8, or 9
+  const validatePhone = (val) => {
+    const digits = (val || '').replace(/\D/g, '');
+    if (!digits) {
+      return 'Please enter your mobile number.';
+    }
+    if (!/^[6-9]/.test(digits)) {
+      return 'Mobile number must start with 6, 7, 8, or 9.';
+    }
+    if (digits.length !== 10) {
+      return 'Mobile number must be exactly 10 digits.';
+    }
+    return '';
+  };
+
+  // 4. Password Validator: Min 6, Max 12 characters
+  const validatePassword = (val) => {
+    if (!val) {
+      return 'Please create a password.';
+    }
+    if (val.length < 6) {
+      return 'Password must be at least 6 characters long.';
+    }
+    if (val.length > 12) {
+      return 'Password cannot exceed 12 characters.';
+    }
+    return '';
+  };
+
+  // If already authenticated as customer, redirect to home
   useEffect(() => {
     if (isAuthenticated) {
-      const intended = sessionStorage.getItem('fabricare_intended_destination');
-      if (intended) {
-        sessionStorage.removeItem('fabricare_intended_destination');
-        navigateTo(intended);
-      } else {
-        navigateTo('customer-dashboard');
-      }
+      sessionStorage.removeItem('fabricare_intended_destination');
+      navigateTo('home');
     }
   }, [isAuthenticated, navigateTo]);
 
-  const handlePhoneChange = (e) => {
-    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-    setPhone(digits);
+  // Input Handlers enforcing input-level restrictions
+  const handleFullNameChange = (e) => {
+    // Only allow alphabetic characters and spaces, max 25 characters
+    const filtered = e.target.value.replace(/[^A-Za-z\s]/g, '').slice(0, 25);
+    setFullName(filtered);
+    if (touched.fullName) {
+      setFieldErrors(prev => ({ ...prev, fullName: validateFullName(filtered) }));
+    }
   };
+
+  const handleEmailChange = (e) => {
+    const val = e.target.value;
+    setEmail(val);
+    if (touched.email) {
+      setFieldErrors(prev => ({ ...prev, email: validateEmail(val) }));
+    }
+  };
+
+  const handlePhoneChange = (e) => {
+    // Only allow numeric digits
+    let digits = e.target.value.replace(/\D/g, '');
+
+    // Mobile number must start with 6, 7, 8, or 9 (do not allow 0, 1, 2, 3, 4, 5)
+    if (digits.length > 0 && !/^[6-9]/.test(digits)) {
+      setTouched(prev => ({ ...prev, phone: true }));
+      setFieldErrors(prev => ({ ...prev, phone: 'Mobile number must start with 6, 7, 8, or 9.' }));
+      return;
+    }
+
+    digits = digits.slice(0, 10);
+    setPhone(digits);
+    if (touched.phone) {
+      setFieldErrors(prev => ({ ...prev, phone: validatePhone(digits) }));
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    // Max limit 12 characters
+    const val = e.target.value.slice(0, 12);
+    setPassword(val);
+    if (touched.password) {
+      setFieldErrors(prev => ({ ...prev, password: validatePassword(val) }));
+    }
+  };
+
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    let err = '';
+    if (field === 'fullName') err = validateFullName(fullName);
+    if (field === 'email') err = validateEmail(email);
+    if (field === 'phone') err = validatePhone(phone);
+    if (field === 'password') err = validatePassword(password);
+    setFieldErrors(prev => ({ ...prev, [field]: err }));
+  };
+
+  // Overall form validity check
+  const isFullNameValid = validateFullName(fullName) === '';
+  const isEmailValid = validateEmail(email) === '';
+  const isPhoneValid = validatePhone(phone) === '';
+  const isPasswordValid = validatePassword(password) === '';
+  const isFormValid = isFullNameValid && isEmailValid && isPhoneValid && isPasswordValid;
 
   const handleRegister = async (e) => {
     if (e) e.preventDefault();
@@ -57,32 +183,35 @@ export const SignupPage = () => {
     setSuccessMessage(null);
     clearError();
 
-    // Frontend validations
-    if (!fullName.trim()) {
-      setErrorMessage('Please enter your full name.');
-      return;
-    }
-    if (!email.trim() || !email.includes('@')) {
-      setErrorMessage('Please enter a valid email address.');
-      return;
-    }
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (!cleanPhone) {
-      setErrorMessage('Please enter your mobile number.');
-      return;
-    }
-    if (cleanPhone.length !== 10) {
-      setErrorMessage('Mobile number must be exactly 10 digits.');
-      return;
-    }
-    if (!password || password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
+    // Mark all as touched to show errors if attempted to submit
+    setTouched({
+      fullName: true,
+      email: true,
+      phone: true,
+      password: true
+    });
+
+    const nameErr = validateFullName(fullName);
+    const emailErr = validateEmail(email);
+    const phoneErr = validatePhone(phone);
+    const passErr = validatePassword(password);
+
+    setFieldErrors({
+      fullName: nameErr,
+      email: emailErr,
+      phone: phoneErr,
+      password: passErr
+    });
+
+    if (nameErr || emailErr || phoneErr || passErr) {
+      setErrorMessage(nameErr || emailErr || phoneErr || passErr);
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const fullPhoneNumber = phone.startsWith('+') ? phone : `${countryCode} ${cleanPhone}`;
+      const cleanPhone = phone.replace(/\D/g, '');
+      const fullPhoneNumber = `${countryCode} ${cleanPhone}`;
       await register({
         fullName: fullName.trim(),
         email: email.trim().toLowerCase(),
@@ -92,13 +221,8 @@ export const SignupPage = () => {
 
       setSuccessMessage('Account created successfully! Redirecting...');
       setTimeout(() => {
-        const intended = sessionStorage.getItem('fabricare_intended_destination');
-        if (intended) {
-          sessionStorage.removeItem('fabricare_intended_destination');
-          navigateTo(intended);
-        } else {
-          navigateTo('customer-dashboard');
-        }
+        sessionStorage.removeItem('fabricare_intended_destination');
+        navigateTo('home');
       }, 700);
     } catch (err) {
       setErrorMessage(err.message || 'Registration failed. Please check your information and try again.');
@@ -114,13 +238,8 @@ export const SignupPage = () => {
     setIsSubmitting(true);
     try {
       await loginWithGoogle();
-      const intended = sessionStorage.getItem('fabricare_intended_destination');
-      if (intended) {
-        sessionStorage.removeItem('fabricare_intended_destination');
-        navigateTo(intended);
-      } else {
-        navigateTo('customer-dashboard');
-      }
+      sessionStorage.removeItem('fabricare_intended_destination');
+      navigateTo('home');
     } catch (err) {
       setErrorMessage(err.message || 'Google sign-up could not be completed.');
     } finally {
@@ -242,11 +361,14 @@ export const SignupPage = () => {
             )}
 
             {/* Main Sign Up Form */}
-            <form onSubmit={handleRegister} className="auth-form-body">
+            <form onSubmit={handleRegister} className="auth-form-body" noValidate>
               {/* Field 1: Full Name */}
               <div className="auth-field-row">
-                <label className="auth-label">Full Name</label>
-                <div className="auth-input-wrapper">
+                <div className="auth-label-row">
+                  <label className="auth-label">Full Name</label>
+                  <span className="auth-char-count">{fullName.length}/25</span>
+                </div>
+                <div className={`auth-input-wrapper ${touched.fullName && fieldErrors.fullName ? 'has-error' : ''}`}>
                   <User size={16} className="auth-field-icon" />
                   <input
                     type="text"
@@ -254,41 +376,59 @@ export const SignupPage = () => {
                     className="auth-input-control"
                     placeholder="Enter your full name"
                     value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    onChange={handleFullNameChange}
+                    onBlur={() => handleBlur('fullName')}
+                    maxLength={25}
                     disabled={isSubmitting}
                     autoComplete="name"
                   />
                 </div>
+                {touched.fullName && fieldErrors.fullName && (
+                  <div className="auth-field-error-message" role="alert">
+                    <AlertCircle size={13} />
+                    <span>{fieldErrors.fullName}</span>
+                  </div>
+                )}
               </div>
 
               {/* Field 2: Email Address */}
               <div className="auth-field-row">
                 <label className="auth-label">Email Address</label>
-                <div className="auth-input-wrapper">
+                <div className={`auth-input-wrapper ${touched.email && fieldErrors.email ? 'has-error' : ''}`}>
                   <Mail size={16} className="auth-field-icon" />
                   <input
                     type="email"
                     required
                     className="auth-input-control"
-                    placeholder="Enter your email address"
+                    placeholder="e.g. user@gmail.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={handleEmailChange}
+                    onBlur={() => handleBlur('email')}
                     disabled={isSubmitting}
                     autoComplete="email"
                   />
                 </div>
+                {touched.email && fieldErrors.email && (
+                  <div className="auth-field-error-message" role="alert">
+                    <AlertCircle size={13} />
+                    <span>{fieldErrors.email}</span>
+                  </div>
+                )}
               </div>
 
               {/* Field 3: Mobile Number with Flag / Code */}
               <div className="auth-field-row">
-                <label className="auth-label">Mobile Number</label>
+                <div className="auth-label-row">
+                  <label className="auth-label">Mobile Number</label>
+                  <span className="auth-char-count">{phone.length}/10</span>
+                </div>
                 <div className="auth-input-phone-combo">
                   <div className="country-code-button">
                     <span className="country-flag-emoji">🇮🇳</span>
                     <span className="code-text">{countryCode}</span>
                     <ChevronDown size={13} className="code-chevron" />
                   </div>
-                  <div className="phone-input-split">
+                  <div className={`phone-input-split ${touched.phone && fieldErrors.phone ? 'has-error' : ''}`}>
                     <input
                       type="tel"
                       inputMode="numeric"
@@ -297,18 +437,28 @@ export const SignupPage = () => {
                       placeholder="Enter your mobile number"
                       value={phone}
                       onChange={handlePhoneChange}
+                      onBlur={() => handleBlur('phone')}
                       maxLength={10}
                       disabled={isSubmitting}
                       autoComplete="tel"
                     />
                   </div>
                 </div>
+                {touched.phone && fieldErrors.phone && (
+                  <div className="auth-field-error-message" role="alert">
+                    <AlertCircle size={13} />
+                    <span>{fieldErrors.phone}</span>
+                  </div>
+                )}
               </div>
 
               {/* Field 4: Password */}
               <div className="auth-field-row">
-                <label className="auth-label">Password</label>
-                <div className="auth-input-wrapper">
+                <div className="auth-label-row">
+                  <label className="auth-label">Password</label>
+                  <span className="auth-char-count">{password.length}/12</span>
+                </div>
+                <div className={`auth-input-wrapper ${touched.password && fieldErrors.password ? 'has-error' : ''}`}>
                   <Lock size={16} className="auth-field-icon" />
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -316,7 +466,9 @@ export const SignupPage = () => {
                     className="auth-input-control"
                     placeholder="Create a password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={handlePasswordChange}
+                    onBlur={() => handleBlur('password')}
+                    maxLength={12}
                     disabled={isSubmitting}
                     autoComplete="new-password"
                   />
@@ -330,13 +482,20 @@ export const SignupPage = () => {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {touched.password && fieldErrors.password && (
+                  <div className="auth-field-error-message" role="alert">
+                    <AlertCircle size={13} />
+                    <span>{fieldErrors.password}</span>
+                  </div>
+                )}
               </div>
 
               {/* Primary Button: Exact Matching Teal #017C9E */}
               <button
                 type="submit"
                 className="auth-primary-action-btn"
-                disabled={isSubmitting}
+                disabled={!isFormValid || isSubmitting}
+                title={!isFormValid ? "Please fill in all required fields correctly to create your account" : "Create Account"}
               >
                 {isSubmitting ? (
                   <span className="btn-spinner-flex">
@@ -548,11 +707,24 @@ export const SignupPage = () => {
           gap: 5px;
         }
 
+        .auth-label-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
         .auth-label {
           font-size: 0.8125rem;
           font-weight: 500;
           color: #1E293B;
           text-align: left;
+        }
+
+        .auth-char-count {
+          font-size: 0.75rem;
+          color: #94A3B8;
+          font-weight: 500;
+          letter-spacing: 0.02em;
         }
 
         .auth-input-wrapper {
@@ -564,12 +736,35 @@ export const SignupPage = () => {
           padding: 0 14px;
           background: #FFFFFF;
           box-sizing: border-box;
-          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
         }
 
         .auth-input-wrapper:focus-within {
           border-color: #017C9E;
           box-shadow: 0 0 0 3px rgba(1, 124, 158, 0.12);
+        }
+
+        .auth-input-wrapper.has-error {
+          border-color: #EF4444 !important;
+          background-color: #FFFDFD;
+          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+        }
+
+        .auth-field-error-message {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          color: #DC2626;
+          font-size: 0.75rem;
+          font-weight: 500;
+          margin-top: 1px;
+          line-height: 1.3;
+          animation: authFieldFadeIn 0.15s ease-in-out;
+        }
+
+        @keyframes authFieldFadeIn {
+          from { opacity: 0; transform: translateY(-2px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         /* Phone Input Combo */
@@ -624,6 +819,12 @@ export const SignupPage = () => {
         .phone-input-split:focus-within {
           border-color: #017C9E;
           box-shadow: 0 0 0 3px rgba(1, 124, 158, 0.12);
+        }
+
+        .phone-input-split.has-error {
+          border-color: #EF4444 !important;
+          background-color: #FFFDFD;
+          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
         }
 
         .auth-field-icon {
@@ -694,8 +895,10 @@ export const SignupPage = () => {
         }
 
         .auth-primary-action-btn:disabled {
-          opacity: 0.7;
+          opacity: 0.55;
           cursor: not-allowed;
+          background: #7EA6B2;
+          box-shadow: none;
         }
 
         .btn-spinner-flex {

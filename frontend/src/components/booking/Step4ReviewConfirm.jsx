@@ -463,25 +463,6 @@ export const Step4ReviewConfirm = () => {
               </p>
             </div>
 
-            {/* In-Card Confirm Button */}
-            <button
-              id="confirm-pickup-sidebar-btn"
-              className="confirm-pickup-full-btn"
-              onClick={confirmOrder}
-              disabled={isSubmittingOrder}
-            >
-              {isSubmittingOrder ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Submitting...</span>
-                </>
-              ) : (
-                <>
-                  <span>Confirm Pickup</span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
 
             {/* Security Guarantee Text */}
             <div className="secure-badge-row">

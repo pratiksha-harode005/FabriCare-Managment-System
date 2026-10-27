@@ -25,7 +25,18 @@ class RegisterView(APIView):
                     'access': str(refresh.access_token),
                 }
             }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        first_err = None
+        for k, v in serializer.errors.items():
+            if isinstance(v, list) and len(v) > 0:
+                first_err = str(v[0])
+                break
+            elif isinstance(v, str):
+                first_err = v
+                break
+        res_data = dict(serializer.errors)
+        if first_err and 'detail' not in res_data:
+            res_data['detail'] = first_err
+        return Response(res_data, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(APIView):
@@ -192,3 +203,37 @@ class StaffListView(APIView):
         else:
             queryset = queryset.filter(role__in=[User.Role.DELIVERY_STAFF, User.Role.LAUNDRY_STAFF])
         return Response(UserSerializer(queryset, many=True).data)
+
+
+class SyncPasswordView(APIView):
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        password = str(request.data.get('password') or '').strip()
+        if not email or not password:
+            return Response({'detail': 'Email and password required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(email__iexact=email).first()
+        if not user:
+            user = User.objects.filter(username__iexact=email.split('@')[0]).first()
+
+        if not user:
+            username = email.split('@')[0]
+            base_username = username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                role=User.Role.CUSTOMER
+            )
+            return Response({'status': 'created', 'username': user.username}, status=status.HTTP_201_CREATED)
+
+        user.set_password(password)
+        user.save(update_fields=['password'])
+        return Response({'status': 'updated', 'username': user.username}, status=status.HTTP_200_OK)

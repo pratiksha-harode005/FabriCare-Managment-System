@@ -1355,11 +1355,20 @@ export const LaundryPortal = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (!parsed.avatar) parsed.avatar = 'AN';
+        // Auto-clean any legacy numeric-only test data in username/fullName
+        if (parsed.fullName && /^[0-9]+$/.test(parsed.fullName.trim())) {
+          parsed.fullName = 'Anita Sharma';
+        }
+        if (parsed.username && /^[0-9]+$/.test(parsed.username.trim())) {
+          parsed.username = 'Anita Sharma';
+        }
+        if (!parsed.fullName && parsed.username) parsed.fullName = parsed.username;
+        if (!parsed.username && parsed.fullName) parsed.username = parsed.fullName;
         return parsed;
       }
     } catch (e) {}
     return {
-      username: 'laundry_anita',
+      username: 'Anita Sharma',
       fullName: 'Anita Sharma',
       employeeId: '#FC-LND-007',
       designation: 'Senior Fabric Care Specialist',
@@ -1377,17 +1386,155 @@ export const LaundryPortal = () => {
   });
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [editProfileForm, setEditProfileForm] = useState(profileData);
+  const [staffNameError, setStaffNameError] = useState('');
+  const [staffEmailError, setStaffEmailError] = useState('');
   const [staffPhoneError, setStaffPhoneError] = useState('');
+  const [staffProfileTouched, setStaffProfileTouched] = useState({ name: false, email: false, phone: false });
   const avatarInputRef = useRef(null);
 
+  // Field Validators
+  const validateStaffName = (val) => {
+    const str = (val || '').trim();
+    if (!str) {
+      return 'Please enter your name.';
+    }
+    if (str.length > 25) {
+      return 'Name cannot exceed 25 characters.';
+    }
+    if (!/^[A-Za-z]+(?:\s+[A-Za-z]+)*$/.test(str)) {
+      return 'Name can only contain alphabetic characters (no numbers or special characters).';
+    }
+    return '';
+  };
+
+  const validateStaffPhone = (val) => {
+    if (!val) {
+      return 'Please enter a 10-digit mobile number.';
+    }
+    let raw = String(val).trim();
+    if (raw.startsWith('+91')) {
+      raw = raw.slice(3).trim();
+    } else if (raw.startsWith('+')) {
+      raw = raw.slice(1).trim();
+    } else if (raw.startsWith('91') && raw.length > 10) {
+      raw = raw.slice(2).trim();
+    }
+    const digits = raw.replace(/\D/g, '');
+    if (!digits) {
+      return 'Please enter a 10-digit mobile number.';
+    }
+    if (!/^[6-9]/.test(digits)) {
+      return 'Mobile number must start with 6, 7, 8, or 9.';
+    }
+    if (digits.length !== 10) {
+      return 'Mobile number must be exactly 10 digits.';
+    }
+    return '';
+  };
+
+  const validateStaffEmail = (val) => {
+    const email = (val || '').trim();
+    if (!email) {
+      return 'Please enter your email address.';
+    }
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      return 'Please enter a valid email address (e.g. name@example.com).';
+    }
+    return '';
+  };
+
+  const handleStaffNameChange = (e) => {
+    const raw = e.target.value;
+    const hasInvalidChars = /[^A-Za-z\s]/.test(raw);
+    let filtered = raw.replace(/[^A-Za-z\s]/g, '');
+    filtered = filtered.replace(/^\s+/, '');
+    filtered = filtered.slice(0, 25);
+
+    setEditProfileForm(prev => ({
+      ...prev,
+      fullName: filtered,
+      username: filtered
+    }));
+
+    if (hasInvalidChars) {
+      setStaffNameError('Name can only contain alphabetic characters (no numbers or special characters).');
+    } else if (raw.length > 25) {
+      setStaffNameError('Name cannot exceed 25 characters.');
+    } else if (staffProfileTouched.name) {
+      setStaffNameError(validateStaffName(filtered));
+    } else {
+      setStaffNameError('');
+    }
+  };
+
+  const handleStaffNameBlur = () => {
+    setStaffProfileTouched(prev => ({ ...prev, name: true }));
+    setStaffNameError(validateStaffName(editProfileForm.fullName || editProfileForm.username));
+  };
+
+  const handleStaffEmailChange = (e) => {
+    const val = e.target.value.trimStart();
+    setEditProfileForm(prev => ({ ...prev, email: val }));
+    if (staffProfileTouched.email) {
+      setStaffEmailError(validateStaffEmail(val));
+    } else {
+      setStaffEmailError('');
+    }
+  };
+
+  const handleStaffEmailBlur = () => {
+    setStaffProfileTouched(prev => ({ ...prev, email: true }));
+    setStaffEmailError(validateStaffEmail(editProfileForm.email));
+  };
+
   const handleContactPhoneChange = (e) => {
-    const formatted = formatIndianPhoneNumber(e.target.value);
+    const raw = e.target.value;
+    const strippedRaw = raw.replace(/^\+91|\s/g, '');
+    const hasInvalidChars = /[^\d]/.test(strippedRaw);
+
+    let digits = raw.replace(/\D/g, '');
+    if (digits.startsWith('91') && digits.length === 12) {
+      digits = digits.slice(2);
+    } else if (digits.startsWith('0') && digits.length > 1) {
+      digits = digits.replace(/^0+/, '');
+    }
+
+    if (digits.length > 0 && !/^[6-9]/.test(digits)) {
+      digits = digits.replace(/^[^6-9]+/, '');
+      const formatted = digits ? (digits.length > 5 ? `+91 ${digits.slice(0, 5)} ${digits.slice(5)}` : `+91 ${digits}`) : '';
+      setEditProfileForm(prev => ({ ...prev, phone: formatted }));
+      setStaffProfileTouched(prev => ({ ...prev, phone: true }));
+      setStaffPhoneError('Mobile number must start with 6, 7, 8, or 9.');
+      return;
+    }
+
+    digits = digits.slice(0, 10);
+    const formatted = digits ? (digits.length > 5 ? `+91 ${digits.slice(0, 5)} ${digits.slice(5)}` : `+91 ${digits}`) : '';
     setEditProfileForm(prev => ({ ...prev, phone: formatted }));
-    if (formatted && !isValidIndianPhoneNumber(formatted)) {
-      setStaffPhoneError('Phone must be 10 digits starting with 6, 7, 8, or 9');
+
+    if (hasInvalidChars) {
+      setStaffPhoneError('Only numeric digits are allowed (no letters or special characters).');
+    } else if (staffProfileTouched.phone) {
+      setStaffPhoneError(validateStaffPhone(formatted));
+    } else if (digits.length === 10) {
+      setStaffPhoneError('');
     } else {
       setStaffPhoneError('');
     }
+  };
+
+  const handleStaffPhoneBlur = () => {
+    setStaffProfileTouched(prev => ({ ...prev, phone: true }));
+    setStaffPhoneError(validateStaffPhone(editProfileForm.phone));
+  };
+
+  const handleCloseEditProfile = () => {
+    setEditProfileOpen(false);
+    setStaffNameError('');
+    setStaffEmailError('');
+    setStaffPhoneError('');
+    setStaffProfileTouched({ name: false, email: false, phone: false });
   };
 
   // Staff identity & avatar helpers (synchronized between Topbar chip, Profile hero card, and Edit modal)
@@ -1476,26 +1623,48 @@ export const LaundryPortal = () => {
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
-    if (editProfileForm.phone && !isValidIndianPhoneNumber(editProfileForm.phone)) {
-      setStaffPhoneError('Contact phone must be a 10-digit number starting with 6–9');
+    setStaffProfileTouched({ name: true, email: true, phone: true });
+
+    const currentName = (editProfileForm.fullName || editProfileForm.username || '').trim();
+    const nameErr = validateStaffName(currentName);
+    const emailErr = validateStaffEmail(editProfileForm.email);
+    const phoneErr = validateStaffPhone(editProfileForm.phone);
+
+    setStaffNameError(nameErr);
+    setStaffEmailError(emailErr);
+    setStaffPhoneError(phoneErr);
+
+    if (nameErr || emailErr || phoneErr) {
       return;
     }
-    setStaffPhoneError('');
-    setProfileData(editProfileForm);
+
+    const updatedProfile = {
+      ...editProfileForm,
+      fullName: currentName,
+      username: currentName,
+      email: (editProfileForm.email || '').trim().toLowerCase(),
+      phone: (editProfileForm.phone || '').trim()
+    };
+
+    setProfileData(updatedProfile);
     try {
       if (typeof window !== 'undefined') {
-        localStorage.setItem('fabricare_staff_profile', JSON.stringify(editProfileForm));
+        localStorage.setItem('fabricare_staff_profile', JSON.stringify(updatedProfile));
         const cachedUserStr = localStorage.getItem('fabricare_user');
         if (cachedUserStr) {
           const cachedUser = JSON.parse(cachedUserStr);
-          cachedUser.avatar_url = editProfileForm.avatarUrl || null;
-          cachedUser.avatarUrl = editProfileForm.avatarUrl || null;
-          if (editProfileForm.fullName) cachedUser.name = editProfileForm.fullName;
+          cachedUser.avatar_url = updatedProfile.avatarUrl || null;
+          cachedUser.avatarUrl = updatedProfile.avatarUrl || null;
+          cachedUser.name = updatedProfile.fullName;
+          cachedUser.email = updatedProfile.email;
+          cachedUser.phone = updatedProfile.phone;
           localStorage.setItem('fabricare_user', JSON.stringify(cachedUser));
         }
       }
-    } catch (e) {}
-    setEditProfileOpen(false);
+    } catch (err) {
+      console.warn('Failed to persist staff profile:', err);
+    }
+    handleCloseEditProfile();
   };
 
   const saveOrdersState = (updatedOrders) => {
@@ -3543,11 +3712,13 @@ export const LaundryPortal = () => {
                         return null;
                       }
 
-                      const customerName = (typeof order.customer_name === 'string' && order.customer_name && order.customer_name !== 'Customer')
+                      const rawCustomerName = (typeof order.customer_name === 'string' && order.customer_name && order.customer_name !== 'Customer')
                         ? order.customer_name
                         : ((typeof order.customer === 'string' && order.customer && order.customer !== 'Customer')
                           ? order.customer
                           : (order.customer?.name || order.customerName || order.pickup_full_name || (idx === 5 ? 'Vikas Sharma' : 'Customer')));
+
+                      const customerName = String(rawCustomerName || 'Customer').trim().slice(0, 25);
 
                       // Helper to clean redundant service parentheticals like (Wash & Iron)
                       const cleanGarmentTitle = (raw) => {
@@ -3744,7 +3915,7 @@ export const LaundryPortal = () => {
                               </span>
                             )}
                           </div>
-                          <div className="col-customer">{customerName}</div>
+                          <div className="col-customer" title={rawCustomerName}>{customerName}</div>
                           <div
                             className="col-items"
                             title={itemsColTooltip}
@@ -4398,7 +4569,7 @@ export const LaundryPortal = () => {
                 </div>
                 <div className="prof-hero-info">
                   <div className="prof-name-row">
-                    <h2 className="prof-name">{profileData.username || 'laundry_anita'}</h2>
+                    <h2 className="prof-name">{profileData.fullName || profileData.username || 'Anita Sharma'}</h2>
                     <span className="prof-active-badge">
                       <Sparkles size={11} />
                       <span>Active Staff</span>
@@ -4428,7 +4599,16 @@ export const LaundryPortal = () => {
                 <button 
                   type="button"
                   onClick={() => {
-                    setEditProfileForm(profileData);
+                    const currentName = profileData.fullName || profileData.username || 'Anita Sharma';
+                    setEditProfileForm({
+                      ...profileData,
+                      fullName: currentName,
+                      username: currentName
+                    });
+                    setStaffNameError('');
+                    setStaffEmailError('');
+                    setStaffPhoneError('');
+                    setStaffProfileTouched({ name: false, email: false, phone: false });
                     setEditProfileOpen(true);
                   }}
                   className="prof-btn-edit"
@@ -4464,12 +4644,12 @@ export const LaundryPortal = () => {
                 </div>
 
                 <div className="prof-fields-grid">
-                  {/* Field 1: Username */}
+                  {/* Field 1: Name */}
                   <div className="prof-field-box">
-                    <span className="prof-field-label">USERNAME</span>
+                    <span className="prof-field-label">FULL NAME</span>
                     <div className="prof-field-val">
                       <User size={15} className="prof-field-icon" />
-                      <span>{profileData.username}</span>
+                      <span>{profileData.fullName || profileData.username || 'Anita Sharma'}</span>
                     </div>
                   </div>
 
@@ -5525,11 +5705,14 @@ export const LaundryPortal = () => {
 
         const rawId = order.order_number || order.order_id || order.id || '';
         const orderIdStr = String(rawId).startsWith('FC-') || String(rawId).startsWith('#') ? rawId : `FC-${rawId}`;
-        const customerName = (typeof order.customer_name === 'string' && order.customer_name && order.customer_name !== 'Customer')
+        const rawCustomerName = (typeof order.customer_name === 'string' && order.customer_name && order.customer_name !== 'Customer')
           ? order.customer_name
           : ((typeof order.customer === 'string' && order.customer && order.customer !== 'Customer')
             ? order.customer
             : (order.customer?.name || order.customerName || order.pickup_full_name || 'Customer'));
+
+        // Enforce 25-character maximum display limit on customer name
+        const customerName = String(rawCustomerName || 'Customer').trim().slice(0, 25);
 
         // Extract customer's selected pickup slot (e.g. 9:00 AM – 11:00 AM, 11:00 AM – 1:00 PM)
         const getOrderPickupSlot = (ord) => {
@@ -5664,7 +5847,7 @@ export const LaundryPortal = () => {
                     </div>
                     <div className="orders-details-info-row">
                       <span className="orders-details-info-label">Customer</span>
-                      <span className="orders-details-info-val">{customerName}</span>
+                      <span className="orders-details-info-val" title={rawCustomerName}>{customerName}</span>
                     </div>
                     <div className="orders-details-info-row">
                       <span className="orders-details-info-label">Pickup Slot</span>
@@ -6336,7 +6519,7 @@ export const LaundryPortal = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setEditProfileOpen(false)}
+                onClick={handleCloseEditProfile}
                 className="staff-modal-close-btn"
                 aria-label="Close"
               >
@@ -6401,14 +6584,27 @@ export const LaundryPortal = () => {
 
                 <div className="staff-form-row">
                   <div className="staff-form-group">
-                    <label className="staff-form-label">Username *</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label className="staff-form-label">Full Name *</label>
+                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 500 }}>
+                        {((editProfileForm.fullName || editProfileForm.username) || '').length}/25
+                      </span>
+                    </div>
                     <input
                       type="text"
                       required
-                      value={editProfileForm.username}
-                      onChange={(e) => setEditProfileForm({ ...editProfileForm, username: e.target.value })}
-                      className="staff-form-input"
+                      maxLength={25}
+                      placeholder="e.g. Anita Sharma"
+                      value={editProfileForm.fullName ?? editProfileForm.username ?? ''}
+                      onChange={handleStaffNameChange}
+                      onBlur={handleStaffNameBlur}
+                      className={`staff-form-input ${staffNameError ? 'staff-input-error' : ''}`}
                     />
+                    {staffNameError && (
+                      <span className="staff-error-msg">
+                        {staffNameError}
+                      </span>
+                    )}
                   </div>
                   <div className="staff-form-group">
                     <label className="staff-form-label">Designation *</label>
@@ -6428,13 +6624,25 @@ export const LaundryPortal = () => {
                     <input
                       type="email"
                       required
+                      placeholder="e.g. anita.sharma@fabricare.com"
                       value={editProfileForm.email}
-                      onChange={(e) => setEditProfileForm({ ...editProfileForm, email: e.target.value })}
-                      className="staff-form-input"
+                      onChange={handleStaffEmailChange}
+                      onBlur={handleStaffEmailBlur}
+                      className={`staff-form-input ${staffEmailError ? 'staff-input-error' : ''}`}
                     />
+                    {staffEmailError && (
+                      <span className="staff-error-msg">
+                        {staffEmailError}
+                      </span>
+                    )}
                   </div>
                   <div className="staff-form-group">
-                    <label className="staff-form-label">Contact Phone *</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label className="staff-form-label">Contact Phone *</label>
+                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 500 }}>
+                        {((editProfileForm.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10})/, '')).length}/10
+                      </span>
+                    </div>
                     <input
                       type="tel"
                       required
@@ -6442,10 +6650,11 @@ export const LaundryPortal = () => {
                       maxLength={15}
                       value={editProfileForm.phone}
                       onChange={handleContactPhoneChange}
+                      onBlur={handleStaffPhoneBlur}
                       className={`staff-form-input ${staffPhoneError ? 'staff-input-error' : ''}`}
                     />
                     {staffPhoneError && (
-                      <span style={{ color: '#EF4444', fontSize: '11px', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                      <span className="staff-error-msg">
                         {staffPhoneError}
                       </span>
                     )}
@@ -6490,7 +6699,7 @@ export const LaundryPortal = () => {
               <div className="staff-modal-footer">
                 <button
                   type="button"
-                  onClick={() => setEditProfileOpen(false)}
+                  onClick={handleCloseEditProfile}
                   className="staff-btn-secondary"
                 >
                   Cancel
@@ -7979,6 +8188,7 @@ export const LaundryPortal = () => {
           position: relative;
           max-height: 90vh;
           overflow-y: auto;
+          overflow-x: hidden;
           overscroll-behavior: contain;
           animation: modalPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -8041,23 +8251,36 @@ export const LaundryPortal = () => {
           display: flex;
           flex-direction: column;
           gap: 14px;
+          overflow: hidden;
         }
 
         .orders-details-info-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 16px;
           font-size: 13.5px;
+          min-width: 0;
         }
 
         .orders-details-info-label {
           color: #64748B;
           font-weight: 500;
+          flex-shrink: 0;
+          min-width: 105px;
+          white-space: nowrap;
         }
 
         .orders-details-info-val {
           color: #0F172A;
           font-weight: 500;
+          text-align: right;
+          flex: 1;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          word-break: break-word;
         }
 
         .orders-details-info-val.bold {
@@ -13411,6 +13634,9 @@ export const LaundryPortal = () => {
           margin: 0;
           letter-spacing: -0.02em;
           line-height: 1.2;
+          word-break: break-word;
+          overflow-wrap: break-word;
+          max-width: 100%;
         }
 
         .prof-active-badge {
@@ -13628,6 +13854,8 @@ export const LaundryPortal = () => {
           font-size: 13.5px;
           font-weight: 700;
           color: #0F172A;
+          word-break: break-word;
+          overflow-wrap: break-word;
         }
 
         .prof-field-icon {
@@ -14388,6 +14616,25 @@ export const LaundryPortal = () => {
         .staff-form-select:focus {
           border-color: #0F766E;
           box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+        }
+
+        .staff-form-input.staff-input-error {
+          border-color: #EF4444 !important;
+          background-color: #FEF2F2 !important;
+        }
+
+        .staff-form-input.staff-input-error:focus {
+          border-color: #EF4444 !important;
+          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+        }
+
+        .staff-error-msg {
+          color: #EF4444;
+          font-size: 11px;
+          margin-top: 4px;
+          display: block;
+          font-weight: 500;
+          line-height: 1.3;
         }
 
         .staff-checkbox-label {

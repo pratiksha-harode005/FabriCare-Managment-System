@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export const LoginPage = () => {
-  const { login, loginWithGoogle, sendPasswordReset, authError, clearError, isAuthenticated, userRole } = useAuth();
+  const { login, loginWithGoogle, sendPasswordReset, confirmPasswordResetWithCode, authError, clearError, isAuthenticated, userRole } = useAuth();
   const { navigateTo } = useBooking();
   const { setIsAdminAuthenticated, setAdminTab } = useAdmin();
 
@@ -28,9 +28,46 @@ export const LoginPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [infoNotice, setInfoNotice] = useState(null);
+  const [googleAccountDetected, setGoogleAccountDetected] = useState(false);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
+  const [resetIsGoogleNotice, setResetIsGoogleNotice] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // In-app password reset confirmation state
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [oobCode, setOobCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resetSuccessNotice, setResetSuccessNotice] = useState(null);
+
+  // Detect mode=resetPassword and oobCode from URL
+  useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const hashStr = window.location.hash || '';
+      const hashQuery = hashStr.includes('?') ? hashStr.split('?')[1] : '';
+      const hashParams = new URLSearchParams(hashQuery);
+
+      const modeParam = urlParams.get('mode') || hashParams.get('mode');
+      const codeParam = urlParams.get('oobCode') || hashParams.get('oobCode');
+
+      if ((modeParam === 'resetPassword' || modeParam === 'action') && codeParam) {
+        setOobCode(codeParam);
+        setIsResetConfirmOpen(true);
+      }
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // If already authenticated and not in middle of submit, redirect to destination portal immediately
   useEffect(() => {
@@ -72,6 +109,8 @@ export const LoginPage = () => {
     if (e) e.preventDefault();
     setErrorMessage(null);
     setInfoNotice(null);
+    setResetSuccessNotice(null);
+    setGoogleAccountDetected(false);
     clearError();
     setIsSubmitting(true);
 
@@ -88,15 +127,14 @@ export const LoginPage = () => {
       } else if (role === 'staff') {
         navigateTo('laundry-portal');
       } else {
-        const intended = sessionStorage.getItem('fabricare_intended_destination');
-        if (intended) {
-          sessionStorage.removeItem('fabricare_intended_destination');
-          navigateTo(intended);
-        } else {
-          navigateTo('customer-dashboard');
-        }
+        sessionStorage.removeItem('fabricare_intended_destination');
+        navigateTo('home');
       }
     } catch (err) {
+      const isGoogle = err?.isGoogleAccount || String(err?.message || '').toLowerCase().includes('google sign-in');
+      if (isGoogle) {
+        setGoogleAccountDetected(true);
+      }
       setErrorMessage(err.message || 'Invalid email or password. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -106,6 +144,7 @@ export const LoginPage = () => {
   const handleGoogleSignIn = async () => {
     setErrorMessage(null);
     setInfoNotice(null);
+    setGoogleAccountDetected(false);
     clearError();
     setIsSubmitting(true);
     try {
@@ -116,13 +155,8 @@ export const LoginPage = () => {
         setAdminTab('dashboard');
         navigateTo('admin');
       } else {
-        const intended = sessionStorage.getItem('fabricare_intended_destination');
-        if (intended) {
-          sessionStorage.removeItem('fabricare_intended_destination');
-          navigateTo(intended);
-        } else {
-          navigateTo('customer-dashboard');
-        }
+        sessionStorage.removeItem('fabricare_intended_destination');
+        navigateTo('home');
       }
     } catch (err) {
       setErrorMessage(err.message || 'Google sign-in could not be completed.');
@@ -144,15 +178,64 @@ export const LoginPage = () => {
   };
 
   const handleSendReset = async (e) => {
-    e.preventDefault();
-    if (!resetEmail) return;
+    if (e) e.preventDefault();
+    const clean = (resetEmail || '').trim();
+    if (!clean) {
+      setErrorMessage('Please enter your registered email address.');
+      return;
+    }
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(clean)) {
+      setErrorMessage('Please enter a valid email address (e.g. yourname@gmail.com).');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
+    setResetIsGoogleNotice(false);
     try {
-      await sendPasswordReset(resetEmail);
+      const res = await sendPasswordReset(clean);
       setResetSent(true);
+      if (res?.isGoogle) {
+        setResetIsGoogleNotice(true);
+      }
+      setResendCooldown(30);
     } catch (err) {
       setErrorMessage(err.message || 'Failed to send password reset email.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmNewPassword = async (e) => {
+    if (e) e.preventDefault();
+    setErrorMessage(null);
+    clearError();
+
+    if (!newPassword || newPassword.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setErrorMessage('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await confirmPasswordResetWithCode(oobCode, newPassword);
+      setIsResetConfirmOpen(false);
+      setResetSuccessNotice('Your password has been successfully reset! You can now sign in with your new password.');
+      if (res?.email) {
+        setIdentifier(res.email);
+        setPassword(newPassword);
+      }
+      // Clean query params from URL without refreshing
+      try {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (_) {}
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to reset password. The link may have expired.');
     } finally {
       setIsSubmitting(false);
     }
@@ -164,7 +247,99 @@ export const LoginPage = () => {
         {/* LEFT COLUMN: Form Panel matching Reference Image */}
         <div className="auth-form-panel">
           <div className="auth-form-container">
-            {isForgotPasswordOpen ? (
+            {isResetConfirmOpen ? (
+              /* Create New Password View (from email reset link) */
+              <div className="auth-reset-view">
+                <h1 className="auth-headline">Create New Password</h1>
+                <p className="auth-subheadline">
+                  Enter your new password below to update your FabriCare account credentials.
+                </p>
+
+                {errorMessage && (
+                  <div className="auth-alert-message error" role="alert">
+                    <AlertCircle size={15} />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleConfirmNewPassword} className="auth-form-body">
+                  <div className="auth-field-row">
+                    <label className="auth-label">New Password</label>
+                    <div className="auth-input-wrapper">
+                      <Lock size={16} className="auth-field-icon" />
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        className="auth-input-control"
+                        placeholder="Enter at least 6 characters"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        disabled={isSubmitting}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        className="auth-input-action-btn"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        tabIndex={-1}
+                      >
+                        {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="auth-field-row">
+                    <label className="auth-label">Confirm New Password</label>
+                    <div className="auth-input-wrapper">
+                      <Lock size={16} className="auth-field-icon" />
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        className="auth-input-control"
+                        placeholder="Re-enter your new password"
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="auth-primary-action-btn"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <span className="btn-spinner-flex">
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Updating Password...</span>
+                      </span>
+                    ) : (
+                      <>
+                        <span>Save Password & Sign In</span>
+                        <ArrowRight size={16} />
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                <div className="auth-switch-prompt" style={{ marginTop: '22px' }}>
+                  <button
+                    type="button"
+                    className="auth-text-link"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    onClick={() => {
+                      setIsResetConfirmOpen(false);
+                      setErrorMessage(null);
+                    }}
+                  >
+                    <ArrowLeft size={14} /> Back to Sign In
+                  </button>
+                </div>
+              </div>
+            ) : isForgotPasswordOpen ? (
               /* Forgot Password View */
               <div className="auth-reset-view">
                 <h1 className="auth-headline">Reset Password</h1>
@@ -180,9 +355,94 @@ export const LoginPage = () => {
                 )}
 
                 {resetSent ? (
-                  <div className="auth-alert-message success">
-                    <CheckCircle2 size={16} />
-                    <span>Password reset email sent! Please check your inbox.</span>
+                  <div className="auth-reset-success-box" style={{ marginTop: '16px' }}>
+                    <div className="auth-alert-message success" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '16px', borderRadius: '14px', background: '#E6F7F5', border: '1px solid #BCEAE6' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '15px', color: '#0A808D' }}>
+                        <CheckCircle2 size={19} className="shrink-0" />
+                        <span>Password Reset Email Sent!</span>
+                      </div>
+                      <p style={{ margin: '10px 0 0', fontSize: '13.5px', color: '#1A3038', lineHeight: 1.55 }}>
+                        A real password reset link has been dispatched to:
+                        <br />
+                        <strong style={{ color: '#017C9E', fontSize: '14.5px', wordBreak: 'break-all' }}>{resetEmail.trim()}</strong>
+                      </p>
+                    </div>
+
+                    {resetIsGoogleNotice && (
+                      <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '12px', padding: '12px 14px', fontSize: '12.5px', color: '#1E40AF', lineHeight: 1.55, marginTop: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#1D4ED8', marginBottom: '4px' }}>
+                          <Info size={15} />
+                          <span>Google Sign-In Account Detected</span>
+                        </div>
+                        <p style={{ margin: '0 0 10px', fontSize: '12.5px' }}>
+                          This email was registered using Google. You can sign in immediately using Google — no password is required.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsForgotPasswordOpen(false);
+                            handleGoogleSignIn();
+                          }}
+                          disabled={isSubmitting}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            background: '#FFFFFF',
+                            border: '1.5px solid #4285F4',
+                            borderRadius: '8px',
+                            padding: '8px 14px',
+                            fontSize: '12.5px',
+                            fontWeight: 700,
+                            color: '#1D4ED8',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <svg viewBox="0 0 24 24" width="15" height="15">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                          </svg>
+                          Sign In with Google Now
+                        </button>
+                      </div>
+                    )}
+
+                    <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '12px', padding: '12px 14px', fontSize: '12.5px', color: '#92400E', lineHeight: 1.55, marginTop: '12px' }}>
+                      <strong>📬 Important:</strong> The email is sent from <code>noreply@fabric-care-1f384.firebaseapp.com</code>. If you do not see it in your Primary inbox within 1-2 minutes, please check your <strong>Spam</strong>, <strong>Junk</strong>, or <strong>Promotions</strong> folder.
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                      <button
+                        type="button"
+                        className="auth-primary-action-btn"
+                        style={{ flex: 1, padding: '12px 14px', fontSize: '13.5px', borderRadius: '10px', height: 'auto' }}
+                        disabled={isSubmitting || resendCooldown > 0}
+                        onClick={handleSendReset}
+                      >
+                        {isSubmitting ? (
+                          <span className="btn-spinner-flex">
+                            <Loader2 size={15} className="animate-spin" />
+                            <span>Sending...</span>
+                          </span>
+                        ) : resendCooldown > 0 ? (
+                          `Resend in ${resendCooldown}s`
+                        ) : (
+                          'Resend Email'
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        style={{ flex: 1, padding: '12px 14px', fontSize: '13.5px', borderRadius: '10px', border: '1.5px solid #CBD5E1', background: '#FFFFFF', color: '#334155', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease' }}
+                        onClick={() => {
+                          setResetSent(false);
+                          setErrorMessage(null);
+                        }}
+                      >
+                        Change Email
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <form onSubmit={handleSendReset} className="auth-form-body">
@@ -194,7 +454,7 @@ export const LoginPage = () => {
                           type="email"
                           required
                           className="auth-input-control"
-                          placeholder="Enter your email address"
+                          placeholder="Enter your registered email (e.g. user@gmail.com)"
                           value={resetEmail}
                           onChange={(e) => setResetEmail(e.target.value)}
                           disabled={isSubmitting}
@@ -253,6 +513,13 @@ export const LoginPage = () => {
                     onClick={handleGoogleSignIn}
                     disabled={isSubmitting}
                     title="Sign in with Google"
+                    style={googleAccountDetected ? {
+                      border: '2px solid #4285F4',
+                      background: '#EFF6FF',
+                      boxShadow: '0 0 0 3px rgba(66, 133, 244, 0.25)',
+                      transform: 'scale(1.06)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                    } : {}}
                   >
                     <svg viewBox="0 0 24 24" width="20" height="20">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -297,6 +564,14 @@ export const LoginPage = () => {
                   <span className="sep-line"></span>
                 </div>
 
+                {/* Reset Success Banner */}
+                {resetSuccessNotice && !errorMessage && !authError && (
+                  <div className="auth-alert-message success" style={{ marginBottom: '16px' }} role="status">
+                    <CheckCircle2 size={16} className="shrink-0" />
+                    <span>{resetSuccessNotice}</span>
+                  </div>
+                )}
+
                 {/* Info Notice Banner */}
                 {infoNotice && !errorMessage && !authError && (
                   <div className="auth-alert-message info" role="status">
@@ -305,8 +580,48 @@ export const LoginPage = () => {
                   </div>
                 )}
 
-                {/* Error Banner */}
-                {(errorMessage || authError) && (
+                {/* Google Account Special Guidance Banner */}
+                {googleAccountDetected ? (
+                  <div className="auth-alert-message info" style={{ background: '#F0F9FF', border: '1.5px solid #BAE6FD', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }} role="alert">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0369A1', fontWeight: 700, fontSize: '13.5px' }}>
+                      <Info size={17} className="shrink-0" style={{ color: '#0284C7' }} />
+                      <span>Google Sign-In Account Detected</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '12.5px', color: '#0C4A6E', lineHeight: 1.55 }}>
+                      The account for <strong>{identifier || 'this email'}</strong> is registered with <strong>Google Sign-In</strong>. You don't need a password — click below to sign in instantly with Google!
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={isSubmitting}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '9px',
+                        background: '#FFFFFF',
+                        border: '1.5px solid #4285F4',
+                        borderRadius: '9px',
+                        padding: '10px 16px',
+                        fontSize: '13.5px',
+                        fontWeight: 700,
+                        color: '#1D4ED8',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 6px rgba(66, 133, 244, 0.18)',
+                        transition: 'all 0.2s ease',
+                        width: '100%'
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="18" height="18">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                      </svg>
+                      Sign in with Google Now
+                    </button>
+                  </div>
+                ) : (errorMessage || authError) && (
                   <div className="auth-alert-message error" role="alert">
                     <AlertCircle size={15} />
                     <span>{errorMessage || authError}</span>

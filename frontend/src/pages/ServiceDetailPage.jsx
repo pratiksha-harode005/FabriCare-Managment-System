@@ -20,7 +20,18 @@ import {
 } from 'lucide-react';
 
 export const ServiceDetailPage = () => {
-  const { startBooking } = useBooking();
+  const { startBooking, navigateTo, setCurrentStep } = useBooking();
+
+  const handleBookNow = () => {
+    if (typeof setCurrentStep === 'function') {
+      setCurrentStep(1);
+    }
+    if (typeof navigateTo === 'function') {
+      navigateTo('booking');
+    } else if (typeof startBooking === 'function') {
+      startBooking(1);
+    }
+  };
 
   const processSteps = [
     { num: '01', title: 'Tagging & Sorting', desc: 'Individual barcode tag assigned to trace every item.', icon: <Tag size={20} /> },
@@ -176,7 +187,7 @@ export const ServiceDetailPage = () => {
       </section>
 
       {/* 5. CTA BANNER (KEEPING CLOTHES GOOD AS NEW) */}
-      <section className="trust-cta-banner-section">
+      <section className="trust-cta-banner-section" aria-label="Book laundry service">
         <div className="container">
           <div className="trust-cta-banner">
             <div className="trust-cta-left">
@@ -186,19 +197,30 @@ export const ServiceDetailPage = () => {
               </h2>
             </div>
 
-            <div className="trust-cta-right">
-              <img 
-                src="/assets/folded-towels.jpg" 
-                alt="Neat fresh laundry stack" 
-                className="trust-towels-img"
-              />
-              <button 
-                className="btn btn-coral btn-lg"
-                onClick={() => startBooking('dry-cleaning')}
-              >
-                <span>Book Now</span>
-                <ArrowRight size={18} />
-              </button>
+            <div className="trust-cta-action-group">
+              <div className="trust-cta-center-img-wrap">
+                <picture>
+                  <source srcSet="/assets/fresh-laundry-stack.webp" type="image/webp" />
+                  <img 
+                    src="/assets/fresh-laundry-stack.png" 
+                    alt="Neatly folded clothes stack with green leaf" 
+                    className="trust-towels-img"
+                    loading="lazy"
+                  />
+                </picture>
+              </div>
+
+              <div className="trust-cta-right">
+                <button 
+                  type="button"
+                  className="trust-cta-detail-btn"
+                  onClick={handleBookNow}
+                  aria-label="Book dry cleaning now"
+                >
+                  <span>Book Now</span>
+                  <ArrowRight size={17} className="btn-arrow-icon" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -455,46 +477,164 @@ export const ServiceDetailPage = () => {
           line-height: 1.55;
         }
 
-        /* 5. TRUST CTA BANNER */
+        /* 5. TRUST CTA BANNER (56px Vertical Margin & 16-24px LHS/RHS Edge Gap) */
         .trust-cta-banner-section {
-          padding: 20px 0 90px;
-          background: #FAFCFC;
+          padding: 56px 0;
+          margin: 0;
+          background: transparent;
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+        .trust-cta-banner-section .container {
+          width: 100% !important;
+          max-width: 100% !important;
+          padding: 0 24px !important;
+          margin: 0 auto !important;
+          box-sizing: border-box !important;
         }
 
         .trust-cta-banner {
-          background: linear-gradient(135deg, #E6F7F5 0%, #D8F3EF 100%);
-          border: 1.5px solid #BCEAE6;
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 0 auto !important;
+          box-sizing: border-box !important;
+          background: #E8F8F9;
+          background: linear-gradient(90deg, #EAF8F9 0%, #DDF4F5 50%, #EAF8F9 100%);
+          border: 1px solid rgba(8, 127, 140, 0.16);
           border-radius: 24px;
-          padding: 40px 48px;
+          box-shadow: 0 12px 36px rgba(8, 127, 140, 0.09);
+          padding: 38px 48px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 32px;
+          position: relative;
+          overflow: hidden;
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .trust-cta-banner:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 14px 40px rgba(8, 127, 140, 0.13);
+        }
+
+        .trust-cta-left {
+          flex: 1 1 0;
+          min-width: 260px;
         }
 
         .trust-cta-title {
-          font-size: 2rem;
+          font-family: 'Poppins', sans-serif;
+          font-size: clamp(23px, 2.3vw, 32px);
           font-weight: 800;
-          color: #1A202C;
+          color: #0F2935;
           line-height: 1.25;
+          margin: 0;
+          letter-spacing: -0.02em;
         }
 
         .cta-highlight {
-          color: #0D7A75;
+          display: block;
+          color: #0A808D;
+          font-weight: 800;
         }
 
-        .trust-cta-right {
+        .trust-cta-action-group {
           display: flex;
           align-items: center;
-          gap: 24px;
+          justify-content: flex-end;
+          gap: 28px;
+          flex: 0 0 auto;
+        }
+
+        .trust-cta-center-img-wrap {
+          flex: 0 0 auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
         }
 
         .trust-towels-img {
-          width: 140px;
-          height: 100px;
-          object-fit: cover;
-          border-radius: 14px;
-          box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+          height: 140px;
+          width: auto;
+          max-width: 270px;
+          object-fit: contain;
+          filter: drop-shadow(0 12px 22px rgba(8, 127, 140, 0.14));
+          display: block;
+          transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .trust-cta-banner:hover .trust-towels-img {
+          transform: scale(1.04) translateY(-2px);
+        }
+
+        .trust-cta-right {
+          flex: 0 0 auto;
+          display: flex;
+          align-items: center;
+        }
+
+        .trust-cta-detail-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 9px;
+          background: #FF6652;
+          background: linear-gradient(135deg, #FF705C 0%, #FF563E 100%);
+          color: #FFFFFF;
+          font-family: 'Poppins', sans-serif;
+          font-size: 15.5px;
+          font-weight: 700;
+          line-height: 1;
+          padding: 15px 30px;
+          border-radius: 12px;
+          border: none;
+          cursor: pointer;
+          white-space: nowrap;
+          box-shadow: 0 6px 20px rgba(255, 86, 62, 0.35);
+          transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .trust-cta-detail-btn:hover {
+          transform: translateY(-2px);
+          background: linear-gradient(135deg, #FF7E6B 0%, #FF492F 100%);
+          box-shadow: 0 10px 26px rgba(255, 86, 62, 0.45);
+        }
+
+        .trust-cta-detail-btn:active {
+          transform: translateY(0) scale(0.98);
+          box-shadow: 0 4px 12px rgba(255, 86, 62, 0.3);
+        }
+
+        .btn-arrow-icon {
+          transition: transform 0.2s ease;
+        }
+
+        .trust-cta-detail-btn:hover .btn-arrow-icon {
+          transform: translateX(4px);
+        }
+
+        @media (max-width: 1024px) {
+          .trust-cta-banner-section .container {
+            padding: 0 20px !important;
+          }
+          .trust-cta-banner {
+            padding: 30px 36px !important;
+            gap: 24px !important;
+          }
+          .trust-cta-title {
+            font-size: 24px !important;
+          }
+          .trust-towels-img {
+            height: 120px !important;
+            max-width: 220px !important;
+          }
+          .trust-cta-detail-btn {
+            padding: 13px 24px !important;
+            font-size: 14.5px !important;
+          }
         }
 
         @media (max-width: 992px) {
@@ -503,13 +643,6 @@ export const ServiceDetailPage = () => {
           }
           .promises-cards-grid {
             grid-template-columns: repeat(2, 1fr);
-          }
-          .trust-cta-banner {
-            flex-direction: column;
-            text-align: center;
-          }
-          .trust-cta-right {
-            flex-direction: column;
           }
         }
 
@@ -524,10 +657,58 @@ export const ServiceDetailPage = () => {
             padding: 56px 0;
           }
           .trust-cta-banner-section {
-            padding: 10px 0 60px;
+            margin: 32px 0 !important;
+            padding: 0 !important;
+          }
+          .trust-cta-banner-section .container {
+            padding: 0 16px !important;
           }
           .trust-cta-banner {
-            padding: 32px 20px;
+            flex-direction: column !important;
+            text-align: center !important;
+            padding: 30px 22px !important;
+            border-radius: 18px !important;
+            gap: 20px !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 auto !important;
+          }
+          .trust-cta-left {
+            flex: none !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            min-width: unset !important;
+          }
+          .trust-cta-title {
+            font-size: 21px !important;
+          }
+          .trust-cta-action-group {
+            flex-direction: column !important;
+            width: 100% !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 16px !important;
+          }
+          .trust-cta-center-img-wrap {
+            flex: none !important;
+            width: 100% !important;
+            padding: 0 !important;
+          }
+          .trust-towels-img {
+            height: 110px !important;
+            max-width: 220px !important;
+            margin: 4px 0 !important;
+          }
+          .trust-cta-right {
+            flex: none !important;
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .trust-cta-detail-btn {
+            width: 100% !important;
+            max-width: 280px !important;
+            padding: 14px 24px !important;
+            font-size: 15px !important;
           }
         }
 

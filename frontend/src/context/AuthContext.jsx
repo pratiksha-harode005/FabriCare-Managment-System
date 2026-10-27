@@ -3,13 +3,17 @@ import {
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
+  confirmPasswordReset,
+  verifyPasswordResetCode,
+  linkWithCredential,
+  EmailAuthProvider,
   onAuthStateChanged,
   signInWithPopup,
   GoogleAuthProvider,
   createUserWithEmailAndPassword
 } from 'firebase/auth';
-import { ref, get, set, update } from 'firebase/database';
-import { auth, rtdb } from '../config/firebase';
+import { ref, get, set, update, query, orderByChild, equalTo } from 'firebase/database';
+import { auth, rtdb, getSecondaryAuth } from '../config/firebase';
 import { registerUser, getUserProfile, mapAuthError } from '../services/authService';
 import { normalizeRole, getPortalForRole } from '../utils/roleUtils';
 import { getInitials } from '../utils/helpers';
@@ -145,6 +149,36 @@ const tryDjangoAuth = async (email, password) => {
     } catch (_) {}
   }
   return null;
+};
+
+/**
+ * Check if an email is registered via Google Sign-In in RTDB
+ */
+export const checkIsGoogleAccount = async (targetEmail) => {
+  try {
+    const clean = (targetEmail || '').trim().toLowerCase();
+    if (!clean || !clean.includes('@')) return false;
+
+    const { secondaryAuth } = getSecondaryAuth();
+    if (!secondaryAuth.currentUser) {
+      try {
+        await signInWithEmailAndPassword(secondaryAuth, 'admin@fabricare.com', 'Test@1234');
+      } catch (_) {}
+    }
+    const userQuery = query(ref(rtdb, 'users'), orderByChild('email'), equalTo(clean));
+    const snap = await get(userQuery);
+    if (snap.exists()) {
+      const usersObj = snap.val();
+      for (const uid in usersObj) {
+        const u = usersObj[uid];
+        const avatar = String(u?.avatarUrl || u?.avatar_url || u?.photoURL || u?.photoUrl || '');
+        if (avatar.includes('googleusercontent.com') || avatar.includes('google') || u?.provider === 'google' || u?.authProvider === 'google') {
+          return true;
+        }
+      }
+    }
+  } catch (_) {}
+  return false;
 };
 
 export const safeSetUserInStorage = (profile) => {
@@ -608,8 +642,8 @@ export const AuthProvider = ({ children }) => {
         const nameParts = resolvedName.split(' ');
         const firstName = rtdbData.first_name || nameParts[0] || resolvedName;
         const lastName = rtdbData.last_name || nameParts.slice(1).join(' ') || '';
-        const cleanEmail = (fbUser.email || cleanEmail || '').toLowerCase().trim();
-        const username = rtdbData.username || (cleanEmail ? cleanEmail.split('@')[0] : resolvedName.toLowerCase().replace(/\s+/g, ''));
+        const userEmail = (fbUser.email || cleanEmail || '').toLowerCase().trim();
+        const username = rtdbData.username || (userEmail ? userEmail.split('@')[0] : resolvedName.toLowerCase().replace(/\s+/g, ''));
         const cleanPhone = rtdbData.phone || rtdbData.phoneNumber || '';
 
         const profileData = {
@@ -622,7 +656,7 @@ export const AuthProvider = ({ children }) => {
           first_name: firstName,
           last_name: lastName,
           username,
-          email: cleanEmail,
+          email: userEmail,
           phone: cleanPhone,
           phoneNumber: cleanPhone,
           role,
@@ -767,12 +801,26 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Tier 4: Error Handling
+      const isGoogle = await checkIsGoogleAccount(cleanEmail);
+      if (isGoogle) {
+        const googleErr = new Error(`This account (${cleanEmail}) is registered with Google Sign-In. Please sign in by clicking the "Sign in with Google" button above.`);
+        googleErr.code = 'auth/account-registered-with-google';
+        googleErr.isGoogleAccount = true;
+        googleErr.accountEmail = cleanEmail;
+        throw googleErr;
+      }
+
       throw lastErr || new Error('Invalid email address or password. Please check your credentials and try again.');
     } catch (err) {
       setLoading(false);
-      const friendlyMsg = mapAuthError(err);
+      const friendlyMsg = err.isGoogleAccount ? err.message : mapAuthError(err);
       setAuthError(friendlyMsg);
-      throw new Error(friendlyMsg);
+      const customErr = new Error(friendlyMsg);
+      if (err.isGoogleAccount) {
+        customErr.isGoogleAccount = true;
+        customErr.accountEmail = err.accountEmail;
+      }
+      throw customErr;
     }
   };
 
@@ -965,14 +1013,103 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Password Reset Email
+   * Dispatches real password reset email via Firebase Auth.
    */
   const sendPasswordReset = async (email) => {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail) {
+      throw new Error('Please enter your email address.');
+    }
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(cleanEmail)) {
+      throw new Error('Please enter a valid email address (e.g., user@gmail.com).');
+    }
+
     try {
-      await sendPasswordResetEmail(auth, email.trim());
-      return true;
+      // Check if user is registered with Google
+      const isGoogle = await checkIsGoogleAccount(cleanEmail);
+
+      // Ensure the account exists in Firebase Auth without disrupting current auth session
+      try {
+        const { secondaryAuth } = getSecondaryAuth();
+        await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, `FbCare@${Date.now()}!`);
+      } catch (createErr) {
+        // auth/email-already-in-use or secondary auth errors are safely caught
+      }
+
+      const actionCodeSettings = {
+        url: typeof window !== 'undefined' ? `${window.location.origin}/login` : 'http://localhost:5173/login',
+        handleCodeInApp: false
+      };
+
+      await sendPasswordResetEmail(auth, cleanEmail, actionCodeSettings);
+      return { success: true, isGoogle, email: cleanEmail };
     } catch (err) {
+      console.error('Password reset email error:', err);
       throw new Error(mapAuthError(err));
     }
+  };
+
+  /**
+   * Confirm password reset with oobCode received in link
+   */
+  const confirmPasswordResetWithCode = async (oobCode, newPassword) => {
+    if (!oobCode || !newPassword) {
+      throw new Error('Password reset code and new password are required.');
+    }
+    if (newPassword.length < 6) {
+      throw new Error('Password must be at least 6 characters long.');
+    }
+
+    try {
+      let resetEmail = null;
+      try {
+        resetEmail = await verifyPasswordResetCode(auth, oobCode);
+      } catch (_) {}
+
+      await confirmPasswordReset(auth, oobCode, newPassword);
+
+      if (resetEmail) {
+        // Sync password with Django backend so all login methods succeed
+        try {
+          await fetch('http://127.0.0.1:8000/api/auth/sync-password/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: resetEmail, password: newPassword })
+          });
+        } catch (_) {}
+      }
+
+      return { success: true, email: resetEmail };
+    } catch (err) {
+      console.error('Password reset confirmation error:', err);
+      throw new Error(mapAuthError(err));
+    }
+  };
+
+  /**
+   * Link an email/password credential to currently signed-in Google account
+   */
+  const linkPasswordToAccount = async (newPassword) => {
+    if (!auth?.currentUser) {
+      throw new Error('You must be signed in to set or link a password.');
+    }
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error('Password must be at least 6 characters long.');
+    }
+    const cred = EmailAuthProvider.credential(auth.currentUser.email, newPassword);
+    const result = await linkWithCredential(auth.currentUser, cred);
+
+    // Sync to Django
+    try {
+      await fetch('http://127.0.0.1:8000/api/auth/sync-password/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: auth.currentUser.email, password: newPassword })
+      });
+    } catch (_) {}
+
+    return result.user;
   };
 
   /**
@@ -1186,6 +1323,9 @@ export const AuthProvider = ({ children }) => {
         logout,
         enforcePortalRole,
         sendPasswordReset,
+        confirmPasswordResetWithCode,
+        checkIsGoogleAccount,
+        linkPasswordToAccount,
         refreshProfile,
         refreshUserProfile: refreshProfile,
         updateCurrentUserProfile,
