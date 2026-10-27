@@ -75,7 +75,6 @@ export const CustomerAuthModal = () => {
         if (!cleanPhone || cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
           throw new Error('Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.');
         }
-
         if (password.length < 6 || password.length > 12) {
           throw new Error('Password must be between 6 and 12 characters long.');
         }
@@ -147,10 +146,10 @@ export const CustomerAuthModal = () => {
                     <input 
                       type="text" 
                       required 
+                      maxLength={25}
                       className="form-input" 
                       placeholder="e.g. Rohan Mehta"
                       value={fullName}
-                      maxLength={25}
                       onChange={(e) => setFullName(e.target.value.replace(/[^A-Za-z\s]/g, '').slice(0, 25))}
                     />
                   </div>

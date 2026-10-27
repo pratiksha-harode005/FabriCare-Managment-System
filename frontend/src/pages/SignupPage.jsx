@@ -373,12 +373,12 @@ export const SignupPage = () => {
                   <input
                     type="text"
                     required
+                    maxLength={25}
                     className="auth-input-control"
                     placeholder="Enter your full name"
                     value={fullName}
                     onChange={handleFullNameChange}
                     onBlur={() => handleBlur('fullName')}
-                    maxLength={25}
                     disabled={isSubmitting}
                     autoComplete="name"
                   />

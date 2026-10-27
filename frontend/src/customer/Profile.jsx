@@ -255,7 +255,6 @@ export const Profile = () => {
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-
     setProfileTouched({ name: true, phone: true });
     const nameErr = validateFullName(profileForm.name);
     const phoneErr = validatePhone(profileForm.phone);
@@ -264,7 +263,6 @@ export const Profile = () => {
     if (nameErr || phoneErr) {
       return;
     }
-
     setSavingProfile(true);
     try {
       const payload = {
