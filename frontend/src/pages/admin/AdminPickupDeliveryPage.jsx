@@ -1973,6 +1973,8 @@ export const AdminPickupDeliveryPage = () => {
           display: flex;
           flex-direction: column;
           gap: 1px;
+          min-width: 0;
+          overflow: hidden;
         }
 
         .customer-name-text {
@@ -1980,6 +1982,10 @@ export const AdminPickupDeliveryPage = () => {
           color: #0F172A;
           font-size: 0.8125rem;
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 155px;
+          display: block;
         }
 
         .customer-phone-text {
@@ -1987,6 +1993,10 @@ export const AdminPickupDeliveryPage = () => {
           color: #64748B;
           font-weight: 400;
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 155px;
+          display: block;
         }
 
         /* Column: TYPE */

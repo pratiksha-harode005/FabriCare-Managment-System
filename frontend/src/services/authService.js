@@ -70,8 +70,8 @@ export const registerUser = async ({ email, password, fullName, phone = '' }) =>
   if (!cleanEmail) {
     throw new Error('Please enter your email address.');
   }
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  if (!emailRegex.test(cleanEmail)) {
+  const emailRegex = /^[a-zA-Z0-9]+([._%+-][a-zA-Z0-9]+)*@[a-zA-Z0-9]+([.-][a-zA-Z0-9]+)*\.(com|in|org|net|edu|gov|io|co|biz|info|me|co\.in|org\.in|ac\.in|gov\.in|net\.in|[a-zA-Z]{2,4})$/i;
+  if (!emailRegex.test(cleanEmail) || /@[a-zA-Z0-9.-]+\.com[a-zA-Z0-9]+/i.test(cleanEmail)) {
     throw new Error('Please enter a valid email address (e.g., user@gmail.com).');
   }
 

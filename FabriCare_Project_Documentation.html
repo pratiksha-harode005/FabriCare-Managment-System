@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FabriCare - Official Project Documentation</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 16mm 14mm 16mm 14mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #334155;
+      background: #E2E8F0;
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+    .page-container {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 20px auto;
+      background: #FFFFFF;
+      padding: 16mm 15mm 16mm 15mm;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      page-break-after: always;
+      position: relative;
+    }
+    @media print {
+      body {
+        background: transparent;
+      }
+      .page-container {
+        width: 100%;
+        min-height: 100vh;
+        margin: 0;
+        box-shadow: none;
+        padding: 0;
+        page-break-after: always;
+      }
+    }
+    .page-content {
+      flex: 1;
+    }
+    .footer {
+      border-top: 1px solid #CBD5E1;
+      padding-top: 6px;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #64748B;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+    h1.main-title {
+      font-size: 34px;
+      font-weight: 800;
+      color: #1E3A5F;
+      letter-spacing: -0.02em;
+      margin-bottom: 2px;
+    }
+    .main-subtitle {
+      font-size: 18px;
+      color: #64748B;
+      font-weight: 400;
+      margin-bottom: 22px;
+    }
+    .sec-badge {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0F172A;
+      letter-spacing: 0.05em;
+      margin-bottom: 16px;
+    }
+    h2.heading-1 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #1E3A5F;
+      margin-bottom: 7px;
+    }
+    h3.heading-2 {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #0F172A;
+      margin-top: 10px;
+      margin-bottom: 5px;
+    }
+    h3.sub-heading {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #1E3A5F;
+      margin-top: 9px;
+      margin-bottom: 2px;
+    }
+    .folder-path {
+      font-size: 11px;
+      color: #64748B;
+      margin-bottom: 5px;
+    }
+    p {
+      color: #334155;
+      font-size: 12px;
+      line-height: 1.5;
+      margin-bottom: 6px;
+    }
+    ul.bullet-list {
+      list-style-type: none;
+      padding-left: 0;
+      margin-bottom: 6px;
+    }
+    ul.bullet-list li {
+      position: relative;
+      padding-left: 15px;
+      margin-bottom: 3.5px;
+      font-size: 11.5px;
+      color: #334155;
+      line-height: 1.45;
+    }
+    ul.bullet-list li::before {
+      content: "•";
+      position: absolute;
+      left: 2px;
+      color: #334155;
+      font-size: 12.5px;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 5px;
+      margin-bottom: 7px;
+      font-size: 11px;
+    }
+    table.data-table th, table.data-table td {
+      border: 1px solid #CBD5E1;
+      padding: 5.5px 8.5px;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.data-table th {
+      background-color: #F1F5F9;
+      color: #0F172A;
+      font-weight: 700;
+    }
+    table.data-table td {
+      color: #334155;
+    }
+    table.meta-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 18px;
+      font-size: 12px;
+    }
+    table.meta-table th, table.meta-table td {
+      border: 1px solid #CBD5E1;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    table.meta-table th {
+      width: 140px;
+      background-color: #F8FAFC;
+      color: #0F172A;
+      font-weight: 700;
+    }
+    .code-box {
+      background: #F8FAFC;
+      border: 1px solid #CBD5E1;
+      border-radius: 4px;
+      padding: 7px 10px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 10px;
+      line-height: 1.35;
+      color: #1E293B;
+      margin-bottom: 6px;
+      white-space: pre;
+    }
+    .italic-note {
+      font-style: italic;
+      color: #64748B;
+      font-size: 10.5px;
+      margin-top: 6px;
+    }
+    .author-note {
+      font-style: italic;
+      color: #64748B;
+      font-size: 11px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE 1 -->
+  <div class="page-container">
+    <div class="page-content">
+      <h1 class="main-title">FABRICARE</h1>
+      <div class="main-subtitle">Laundry Management System</div>
+      <div class="sec-badge">PROJECT DOCUMENTATION</div>
+
+      <table class="meta-table">
+        <tr>
+          <th>Team</th>
+          <td>Software Development Team Documentation</td>
+        </tr>
+        <tr>
+          <th>Project Name</th>
+          <td>FabriCare (Laundrix Ecosystem)</td>
+        </tr>
+        <tr>
+          <th>Department</th>
+          <td>Software Development Team</td>
+        </tr>
+        <tr>
+          <th>Prepared By</th>
+          <td>Pratiksha Harode, Priyanka Kushwah</td>
+        </tr>
+        <tr>
+          <th>Date</th>
+          <td>10.11.2026</td>
+        </tr>
+      </table>
+
+      <p>A connected workflow for customer booking, pickup, laundry processing and final delivery.</p>
+      <p><strong>Technology direction:</strong> React 18 + Vite &middot; Django 5.1 REST Framework &middot; Firebase Realtime Database &amp; SQLite / PostgreSQL</p>
+    </div>
+    <div class="footer">
+      <span>FABRICARE | PROJECT DOCUMENTATION</span>
+      <span>Page 1</span>
+    </div>
+  </div>
+
+  <!-- PAGE 2 -->
+  <div class="page-container">
+    <div class="page-content">
+      <h2 class="heading-1">1. Project Overview</h2>
+      <p>FabriCare is a modern laundry and dry cleaning management platform connecting four user roles (Customer, Administrator, Laundry Staff, and Delivery Partner) through a unified real-time order lifecycle. This document defines the actual portal structure, technical architecture, and end-to-end operational workflow.</p>
+
+      <h3 class="heading-2">Project objectives</h3>
+      <ul class="bullet-list">
+        <li>Allow customers to choose laundry services, select items with custom quantities, and place orders with verified pickup address and scheduled time slot.</li>
+        <li>Allow admin to review new orders in real time, accept or reject them, assign pickup executives, and monitor hub throughput.</li>
+        <li>Allow delivery staff to manage assigned pickup tasks, verify customer collection via secure 4-digit email OTP, and confirm handover at the laundry hub.</li>
+        <li>Allow laundry staff to verify garment counts, track live processing stages (Washing, Drying, Ironing), perform quality checks, and pack orders.</li>
+        <li>Assign completed orders for final doorstep delivery, verify delivery OTP, record payment collection, and complete order lifecycle.</li>
+        <li>Maintain one unified order ID with real-time status synchronization across all four portals via Firebase Realtime Database and Django REST APIs.</li>
+      </ul>
+
+      <h3 class="heading-2">Technology direction</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 18%;">Layer</th>
+            <th style="width: 28%;">Technology</th>
+            <th>Responsibility</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Frontend</strong></td>
+            <td>React 18 &middot; Vite 6 &middot; Tailwind CSS &middot; Lucide React</td>
+            <td>Role-based portal interfaces, dynamic multi-step booking, real-time order tracking, camera image uploads and responsive styling.</td>
+          </tr>
+          <tr>
+            <td><strong>Backend</strong></td>
+            <td>Django 5.1 &middot; Django REST Framework &middot; SimpleJWT</td>
+            <td>Business logic, role permissions, state machine transitions, REST API endpoints, user authentication and database models.</td>
+          </tr>
+          <tr>
+            <td><strong>Database &amp; Realtime</strong></td>
+            <td>Firebase Realtime Database &amp; SQLite / PostgreSQL</td>
+            <td>Instant two-way live sync for active orders, real-time status transitions, OTP security secrets, and persistent relational data storage.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="italic-note">This document describes the implemented structure and verified workflows of the FabriCare Laundry Management Platform.</p>
+    </div>
+    <div class="footer">
+      <span>FABRICARE | PROJECT DOCUMENTATION</span>
+      <span>Page 2</span>
+    </div>
+  </div>
+
+  <!-- PAGE 3 -->
+  <div class="page-container">
+    <div class="page-content">
+      <h2 class="heading-1">2. Portal Structure and Responsibilities</h2>
+      <p>Each portal contains the pages and views required by its specific user role. The folder hierarchies below show the actual source files and organizational structure across the frontend codebase.</p>
+
+      <h3 class="sub-heading">2.1 Customer Portal</h3>
+      <div class="folder-path">Folder: frontend/src/customer/</div>
+      <div class="code-box">customer/
+├── CustomerDashboard.jsx      # Customer overview, active orders, quick actions
+├── BookingConfirmation.jsx    # Booking receipt and order confirmation view
+├── MyOrders.jsx               # Active, ongoing, and past order history
+├── TrackOrder.jsx             # Live visual timeline and order tracking stepper
+├── SavedAddresses.jsx         # Doorstep pickup & delivery address book
+├── PaymentsInvoices.jsx       # Order billing, invoice downloads, payment records
+├── HelpSupport.jsx            # Support ticket creation and FAQs
+├── CustomerReports.jsx        # Customer complaints and issue reporting
+├── Notifications.jsx          # Order lifecycle updates and account alerts
+└── Profile.jsx                # Personal details, phone, and security settings</div>
+
+      <h3 class="heading-2">Features</h3>
+      <ul class="bullet-list">
+        <li>Select laundry services (Wash &amp; Fold, Dry Cleaning, Steam Press, Premium Fabric Care) with customized garment item quantities.</li>
+        <li>Choose doorstep pickup address, add landmark details, and select preferred pickup date and time slots.</li>
+        <li>Track order progress in real time through an interactive visual stepper synced with Firebase Realtime Database.</li>
+        <li>View detailed itemized bills, pricing breakdown (service total, pickup fee, discounts, taxes), and download PDF invoices.</li>
+        <li>Manage saved addresses, profile settings, notifications, support tickets, and complaint resolutions.</li>
+      </ul>
+
+      <h3 class="sub-heading">2.2 Admin Portal</h3>
+      <div class="folder-path">Folder: frontend/src/pages/admin/</div>
+      <div class="code-box">admin/
+├── AdminDashboardPage.jsx     # Live KPIs, order pipeline, revenue stats, hub load
+├── AdminOrdersPage.jsx        # Comprehensive orders management and status controls
+├── AdminPickupDeliveryPage.jsx# Pickup and delivery task dispatching and assignment
+├── AdminCustomersPage.jsx     # Registered customers management and order histories
+├── AdminUsersPage.jsx         # Laundry staff & delivery agents role management
+├── AdminServicesPage.jsx      # Laundry services catalog, garment items & pricing
+├── AdminDeliveryReportsPage.jsx# Delivery performance metrics, completion rates
+├── AdminComplaintReportsPage.jsx# Customer complaints investigation and rescheduling
+├── AdminNotificationsPage.jsx # Broadcast alerts and system notifications manager
+└── AdminSettingsPage.jsx      # Platform configuration, operational hours, hubs</div>
+
+      <h3 class="heading-2">Features</h3>
+      <ul class="bullet-list">
+        <li>Review new customer orders in real time with quick Accept, Reject, or Reschedule capabilities.</li>
+        <li>Assign available delivery executives for doorstep customer pickups and final order deliveries.</li>
+        <li>Manage services catalog, itemized rates, express turnaround fees, and tax calculations.</li>
+        <li>Monitor operational health: active orders, hub workload, pending pickups, and delayed delivery alerts.</li>
+        <li>Manage registered users, review staff identity documents (Aadhaar, Driving License, PAN), and audit activity.</li>
+      </ul>
+    </div>
+    <div class="footer">
+      <span>FABRICARE | PROJECT DOCUMENTATION</span>
+      <span>Page 3</span>
+    </div>
+  </div>
+
+  <!-- PAGE 4 -->
+  <div class="page-container">
+    <div class="page-content">
+      <h3 class="sub-heading">2.3 Laundry Staff Portal</h3>
+      <div class="folder-path">Folder: frontend/src/laundry-staff/</div>
+      <div class="code-box">laundry-staff/
+├── LaundryPortal.jsx          # Hub staff workspace, stage tabs and modal handlers
+├── Dashboard.tsx              # Processing queues overview, urgent orders count
+├── Orders.tsx                 # Processing queues (Washing, Drying, Ironing, Packing)
+├── OrderDetails.tsx           # Garment breakdown, special wash instructions, notes
+├── OrderHistory.tsx           # Completed processing batch history and archive
+├── Notifications.tsx          # Real-time alerts for incoming driver handovers
+└── taskConfig.js              # Processing stage definitions, colors, and workflows</div>
+
+      <h3 class="heading-2">Features</h3>
+      <ul class="bullet-list">
+        <li>Confirm receipt of clothes from delivery executives at the hub and verify physical item counts against customer order.</li>
+        <li>Manage stage-by-stage garment processing pipeline: Intake &rarr; Washing &rarr; Drying &rarr; Steam Ironing.</li>
+        <li>Record Quality Check (QC) inspection results: pass garments to packing or route defective items for rework.</li>
+        <li>Pack completed garments, generate packaging verification tags, and mark orders as Ready for Delivery.</li>
+        <li>Track processing stage timestamps and staff accountability for every garment batch.</li>
+      </ul>
+
+      <h3 class="sub-heading">2.4 Delivery Portal</h3>
+      <div class="folder-path">Folder: frontend/src/delivery/</div>
+      <div class="code-box">delivery/
+├── DeliveryPortal.jsx         # Executive task workspace, OTP verification & modals
+├── MyPickupTasks.tsx          # Assigned doorstep pickup tasks list with live filters
+├── PickupDetails.tsx          # Customer address, phone, item count, pickup notes
+├── PickupConfirmation.tsx     # 4-Digit customer OTP validation, bags count & weight
+├── LaundryDropOff.tsx         # Handover confirmation at laundry hub
+├── MyDeliveryTasks.tsx        # Assigned doorstep delivery tasks list
+├── DeliveryDetails.tsx        # Customer location, payment status, deliver notes
+├── DeliveryConfirmation.tsx   # Final 4-digit delivery OTP verification & proof
+├── FailedDeliveries.tsx       # Failed attempt logger with rescheduling reasons
+└── TaskHistory.tsx            # Completed delivery runs, earnings, and date filters</div>
+
+      <h3 class="heading-2">Features</h3>
+      <ul class="bullet-list">
+        <li>View assigned pickup and delivery tasks with customer details, phone dialer, navigation address, and slot time.</li>
+        <li>Secure Doorstep Pickup: Verifies customer identity via real 4-digit OTP dispatched to customer email (EmailJS API).</li>
+        <li>Record collected laundry bags count, approximate weight (kg), and condition notes at customer doorstep.</li>
+        <li>Confirm safe handover and drop-off of collected garments to laundry hub staff.</li>
+        <li>Secure Final Delivery: Verifies customer delivery OTP, records recipient name, collects cash/UPI, and saves delivery proof.</li>
+      </ul>
+    </div>
+    <div class="footer">
+      <span>FABRICARE | PROJECT DOCUMENTATION</span>
+      <span>Page 4</span>
+    </div>
+  </div>
+
+  <!-- PAGE 5 -->
+  <div class="page-container">
+    <div class="page-content">
+      <h2 class="heading-1">3. End-to-End Order Workflow</h2>
+      <p>Pickup and final delivery are separate operational tasks, but both remain linked to the same master order record and order ID, synchronized in real time across all four portals.</p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 7%;">Step</th>
+            <th style="width: 24%;">Responsible portal</th>
+            <th style="width: 48%;">Action</th>
+            <th style="width: 21%;">Example status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1</strong></td>
+            <td>Customer</td>
+            <td>Customer selects services, items, specifies pickup address and time slot, and confirms order.</td>
+            <td>PENDING / Order Placed</td>
+          </tr>
+          <tr>
+            <td><strong>2</strong></td>
+            <td>Admin</td>
+            <td>Admin reviews incoming order details and accepts or rejects the order.</td>
+            <td>ACCEPTED / REJECTED</td>
+          </tr>
+          <tr>
+            <td><strong>3</strong></td>
+            <td>Admin &rarr; Delivery</td>
+            <td>Admin dispatches and assigns an active delivery partner for customer doorstep pickup.</td>
+            <td>PICKUP_ASSIGNED</td>
+          </tr>
+          <tr>
+            <td><strong>4</strong></td>
+            <td>Delivery</td>
+            <td>Partner reaches doorstep, verifies real 4-digit customer OTP sent to email, records bags and weight.</td>
+            <td>PICKED_UP</td>
+          </tr>
+          <tr>
+            <td><strong>5</strong></td>
+            <td>Delivery &rarr; Laundry Staff</td>
+            <td>Partner drops garments at laundry hub; staff verifies physical items and confirms receipt.</td>
+            <td>AT_HUB / Received at Hub</td>
+          </tr>
+          <tr>
+            <td><strong>6</strong></td>
+            <td>Laundry Staff</td>
+            <td>Staff advances order through washing, drying, and steam ironing stages with live progress.</td>
+            <td>IN_PROCESSING (Washing/Drying/Ironing)</td>
+          </tr>
+          <tr>
+            <td><strong>7</strong></td>
+            <td>Laundry Staff</td>
+            <td>Staff conducts quality check inspection, bags items, and marks order ready for dispatch.</td>
+            <td>READY_FOR_DELIVERY / Packed</td>
+          </tr>
+          <tr>
+            <td><strong>8</strong></td>
+            <td>Admin / System &rarr; Delivery</td>
+            <td>Admin assigns a delivery executive to transport packed clothes from hub to customer.</td>
+            <td>OUT_FOR_DELIVERY</td>
+          </tr>
+          <tr>
+            <td><strong>9</strong></td>
+            <td>Delivery</td>
+            <td>Partner delivers clean clothes at doorstep, verifies 4-digit delivery OTP, and collects payment.</td>
+            <td>DELIVERED / Completed</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="heading-2">Exception handling</h3>
+      <ul class="bullet-list">
+        <li>Rejected orders do not proceed to pickup; customer is notified instantly with rejection reason.</li>
+        <li>Failed pickup or delivery attempts (e.g. customer unavailable, wrong address) are recorded with failure reasons and automatically queued for Admin rescheduling.</li>
+        <li>Garments failing quality check inspection are returned to Rework stage with issue comments rather than being packed.</li>
+        <li>Every status transition automatically records timestamp, responsible user ID, and updates Firebase Realtime Database for zero-latency client sync.</li>
+      </ul>
+    </div>
+    <div class="footer">
+      <span>FABRICARE | PROJECT DOCUMENTATION</span>
+      <span>Page 5</span>
+    </div>
+  </div>
+
+  <!-- PAGE 6 -->
+  <div class="page-container">
+    <div class="page-content">
+      <h2 class="heading-1">4. Technical Architecture</h2>
+      <p>The FabriCare architecture combines a reactive React 18 frontend, Django 5.1 REST Framework for backend business logic, and Firebase Realtime Database for live cross-portal event synchronization.</p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 18%;">Layer</th>
+            <th style="width: 28%;">Technology</th>
+            <th>Responsibility</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Frontend</strong></td>
+            <td>React 18 &middot; Vite 6 &middot; Tailwind CSS &middot; Context API</td>
+            <td>Single Page Application (SPA), role-based routing, real-time tracking views, modal dialogs, and responsive layout.</td>
+          </tr>
+          <tr>
+            <td><strong>Backend</strong></td>
+            <td>Django 5.1 &middot; Django REST Framework &middot; SimpleJWT</td>
+            <td>Authoritative business rules, permissions validation, user management, order state machine, and RESTful APIs.</td>
+          </tr>
+          <tr>
+            <td><strong>Database &amp; Realtime</strong></td>
+            <td>Firebase Realtime Database &amp; SQLite / PostgreSQL</td>
+            <td>High-speed live order synchronization, active delivery task status events, security secrets (OTPs), and relational persistence.</td>
+          </tr>
+          <tr>
+            <td><strong>External Services</strong></td>
+            <td>EmailJS REST API &middot; Firebase Storage</td>
+            <td>Automated delivery of real 4-digit customer verification OTPs directly to inbox, and cloud storage for delivery/agent photos.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="heading-2">Database connection &amp; Real-Time Sync</h3>
+      <p>Django connects to the relational database (SQLite in development, PostgreSQL in production) through backend environment variables. Simultaneously, Firebase Realtime Database synchronizes state changes across active browser clients instantaneously without polling.</p>
+
+      <h3 class="heading-2">Security principles</h3>
+      <ul class="bullet-list">
+        <li>Store sensitive credentials (Firebase Admin keys, JWT secret keys, EmailJS tokens) strictly in backend and frontend .env files.</li>
+        <li>Enforce strict Role-Based Access Control (RBAC) on the backend using Django permissions and custom JWT claims.</li>
+        <li>Secure doorstep pickup and delivery handovers using real 4-digit OTPs generated securely and dispatched directly to customer email.</li>
+        <li>Never expose privileged administrative database keys or service credentials in client-side bundles.</li>
+      </ul>
+
+      <h3 class="heading-2">Actual backend and frontend codebase structure</h3>
+      <div class="code-box">FabriCare/
+├── backend/
+│   ├── manage.py
+│   ├── db.sqlite3
+│   ├── .env
+│   ├── config/
+│   │   ├── settings/ (base.py, dev.py, prod.py)
+│   │   ├── urls.py
+│   │   └── wsgi.py
+│   └── apps/
+│       ├── core/ (models, serializers, views, admin)
+│       └── users/ (models, authentication, serializers, views)
+└── frontend/
+    ├── package.json
+    ├── vite.config.js
+    ├── .env
+    └── src/
+        ├── api/ (apiClient.js)
+        ├── config/ (firebase.js)
+        ├── context/ (AuthContext, AdminContext, BookingContext)
+        ├── customer/ (Dashboard, MyOrders, TrackOrder, Booking)
+        ├── pages/admin/ (Dashboard, Orders, Dispatch, Users, Services)
+        ├── laundry-staff/ (LaundryPortal, Orders, taskConfig)
+        ├── delivery/ (DeliveryPortal, MyPickupTasks, TaskHistory)
+        └── services/ (otpEmailService, firestoreService, authService)</div>
+    </div>
+    <div class="footer">
+      <span>FABRICARE | PROJECT DOCUMENTATION</span>
+      <span>Page 6</span>
+    </div>
+  </div>
+
+  <!-- PAGE 7 -->
+  <div class="page-container">
+    <div class="page-content">
+      <h2 class="heading-1">5. Core Data Entities</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 28%;">Entity</th>
+            <th>Purpose in Project Codebase (apps.core &amp; apps.users)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>User &amp; Role</strong></td>
+            <td>Custom user model supporting 4 distinct roles: CUSTOMER, ADMIN, LAUNDRY_STAFF, and DELIVERY_STAFF.</td>
+          </tr>
+          <tr>
+            <td><strong>CustomerAddress</strong></td>
+            <td>Doorstep pickup &amp; delivery locations with flat/house, area/colony, city, and pincode.</td>
+          </tr>
+          <tr>
+            <td><strong>ServiceCategory</strong></td>
+            <td>Top-level laundry categories: Wash &amp; Fold, Dry Cleaning, Steam Press, Premium Care.</td>
+          </tr>
+          <tr>
+            <td><strong>Service</strong></td>
+            <td>Specific laundry items and garment types with standard prices, unit metrics, and turnaround times.</td>
+          </tr>
+          <tr>
+            <td><strong>Order &amp; OrderItem</strong></td>
+            <td>Master order record linking customer, selected garments, quantities, total amount, and status.</td>
+          </tr>
+          <tr>
+            <td><strong>PickupRecord</strong></td>
+            <td>Driver pickup confirmation capturing collected bag count, weight (kg), and verified customer OTP.</td>
+          </tr>
+          <tr>
+            <td><strong>LaundryHandoverRecord</strong></td>
+            <td>Hub intake record documenting garment receipt verification between delivery driver and hub staff.</td>
+          </tr>
+          <tr>
+            <td><strong>LaundryStageLog</strong></td>
+            <td>Real-time timestamp log for Washing, Drying, and Steam Ironing processing stages.</td>
+          </tr>
+          <tr>
+            <td><strong>DeliveryRecord</strong></td>
+            <td>Final delivery log recording recipient name, doorstep delivery OTP verification, and payment proof.</td>
+          </tr>
+          <tr>
+            <td><strong>Invoice</strong></td>
+            <td>Financial record containing subtotal, tax amount, delivery charges, discounts, and payment method.</td>
+          </tr>
+          <tr>
+            <td><strong>Notification &amp; SupportTicket</strong></td>
+            <td>In-app notifications and customer support / complaint tickets with status resolution tracking.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="heading-1" style="margin-top: 10px;">6. API and Tracking Approach</h2>
+      <p>The following are the active versioned REST API endpoints implemented in backend/config/urls.py.</p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 20%;">Area</th>
+            <th style="width: 38%;">API Endpoint</th>
+            <th>Operational Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Authentication</strong></td>
+            <td>/api/v1/auth/login/<br/>/api/v1/auth/register/<br/>/api/v1/auth/me/</td>
+            <td>User authentication, JWT token issuance, session refresh, and profile retrieval.</td>
+          </tr>
+          <tr>
+            <td><strong>Services Catalog</strong></td>
+            <td>/api/v1/services/<br/>/api/v1/services/categories/</td>
+            <td>Retrieve active laundry categories, garment items, base prices, and express rates.</td>
+          </tr>
+          <tr>
+            <td><strong>Orders</strong></td>
+            <td>/api/v1/orders/<br/>/api/v1/customer/orders/</td>
+            <td>Create orders, list authorized customer orders, and retrieve order details.</td>
+          </tr>
+          <tr>
+            <td><strong>Admin Dispatch</strong></td>
+            <td>/api/v1/admin/orders/{id}/accept/<br/>/api/v1/admin/orders/{id}/assign-staff/</td>
+            <td>Admin order review, acceptance/rejection, and delivery agent assignment.</td>
+          </tr>
+          <tr>
+            <td><strong>Delivery Tasks</strong></td>
+            <td>/api/v1/delivery/tasks/<br/>/api/v1/delivery/tasks/{id}/confirm-pickup/<br/>/api/v1/delivery/tasks/{id}/confirm-delivery/</td>
+            <td>Fetch driver task queue, verify customer pickup OTP, log drop-off, and confirm final delivery.</td>
+          </tr>
+          <tr>
+            <td><strong>Laundry Processing</strong></td>
+            <td>/api/v1/laundry/orders/<br/>/api/v1/laundry/orders/{id}/advance-stage/<br/>/api/v1/laundry/orders/{id}/quality-check/</td>
+            <td>Hub intake confirmation, advance washing/drying/ironing stages, and record QC check results.</td>
+          </tr>
+          <tr>
+            <td><strong>Tracking &amp; Alerts</strong></td>
+            <td>/api/v1/orders/{id}/history/<br/>/api/v1/notifications/<br/>/api/v1/support/</td>
+            <td>Fetch chronological order transition history, user notifications, and support tickets.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="heading-2">Tracking rules</h3>
+      <ul class="bullet-list">
+        <li>Backend validates every status transition against an authoritative state machine before writing to the database.</li>
+        <li>Valid state changes update the relational database and simultaneously broadcast to Firebase Realtime Database.</li>
+        <li>Customer Track Order page listens directly to Firebase nodes for instant, real-time UI updates without polling.</li>
+        <li>Failed quality checks automatically route orders to Rework status with mandatory staff inspection notes.</li>
+        <li>Doorstep pickup and delivery events strictly require 4-digit OTP verification matching the database record.</li>
+      </ul>
+    </div>
+    <div class="footer">
+      <span>FABRICARE | PROJECT DOCUMENTATION</span>
+      <span>Page 7</span>
+    </div>
+  </div>
+
+  <!-- PAGE 8 -->
+  <div class="page-container">
+    <div class="page-content">
+      <h2 class="heading-1">7. Implementation Plan</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 22%;">Phase</th>
+            <th style="width: 46%;">Focus</th>
+            <th>Expected outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1 — Foundation &amp; Auth</strong></td>
+            <td>Django 5.1 project setup, Custom User model, JWT authentication, Firebase SDK integration, React Vite setup.</td>
+            <td>Secure base authentication, RBAC authorization, and multi-portal routing.</td>
+          </tr>
+          <tr>
+            <td><strong>2 — Catalog &amp; Booking</strong></td>
+            <td>Services categories, garment items, multi-step booking wizard, address book, and price calculations.</td>
+            <td>Customers can select items, configure addresses, and submit orders.</td>
+          </tr>
+          <tr>
+            <td><strong>3 — Admin &amp; Dispatch</strong></td>
+            <td>Live operational dashboard, pending orders queue, Accept/Reject controls, and automated driver dispatch.</td>
+            <td>Admins can review orders, assign delivery staff, and monitor hub metrics.</td>
+          </tr>
+          <tr>
+            <td><strong>4 — Doorstep Pickup &amp; OTP</strong></td>
+            <td>Delivery tasks feed, EmailJS real 4-digit OTP dispatch, bag count logging, approximate weight and hub drop-off.</td>
+            <td>Secure doorstep pickup with real customer OTP verification and hub handover.</td>
+          </tr>
+          <tr>
+            <td><strong>5 — Hub Processing &amp; QC</strong></td>
+            <td>Hub intake verification, stage advancing (Washing, Drying, Ironing), QC pass/rework routing, and packing.</td>
+            <td>Full transparency into laundry cleaning stages and quality verification.</td>
+          </tr>
+          <tr>
+            <td><strong>6 — Delivery &amp; Verification</strong></td>
+            <td>Out for delivery dispatch, delivery OTP validation, cash/UPI collection, and multi-portal live sync.</td>
+            <td>Completed end-to-end order lifecycle verified across all four portals.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="heading-2">End-to-end verification checklist</h3>
+      <ul class="bullet-list">
+        <li>A customer can place an order and see it immediately in Customer Dashboard and My Orders.</li>
+        <li>The admin reviews new orders; rejected orders are canceled, and accepted orders can be assigned for pickup.</li>
+        <li>Only the assigned delivery partner sees the task, navigates to customer, and enters the real 4-digit OTP sent to customer email.</li>
+        <li>Pickup confirmation records bag count, approximate weight (kg), and confirms safe handover at the laundry hub.</li>
+        <li>Laundry staff verifies intake, advances stages (Washing, Drying, Ironing), and passes quality check inspection.</li>
+        <li>Completed garments are packed, tagged, and marked Ready for Delivery.</li>
+        <li>Delivery partner delivers clean clothes at customer doorstep and verifies the delivery OTP.</li>
+        <li>The customer visualizer reflects all status updates in real time via Firebase Realtime Database without page refresh.</li>
+        <li>Role permissions, token authentication, and API endpoints are strictly tested and verified.</li>
+      </ul>
+
+      <h3 class="heading-2">Final note</h3>
+      <p>This document defines the verified system architecture, real codebase components, and recommended workflows for FabriCare. Before adding new features or migrations, verify existing endpoints and database models in apps.core and apps.users to preserve data integrity.</p>
+
+      <div class="author-note">
+        Prepared by Pratiksha Harode, Priyanka Kushwah &middot; Software Development Team &middot; 10.11.2026
+      </div>
+    </div>
+    <div class="footer">
+      <span>FABRICARE | PROJECT DOCUMENTATION</span>
+      <span>Page 8</span>
+    </div>
+  </div>
+
+</body>
+</html>

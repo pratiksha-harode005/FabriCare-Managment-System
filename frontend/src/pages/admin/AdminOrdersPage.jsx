@@ -1041,7 +1041,7 @@ export const AdminOrdersPage = () => {
                 setCurrentPage(1);
               }}
               allLabel="All Dates"
-              align="left"
+              align="right"
             />
           </div>
         </div>
@@ -1100,8 +1100,8 @@ export const AdminOrdersPage = () => {
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th>Order ID</th>
-                <th>Customer</th>
+                <th className="th-col-order-id">Order ID</th>
+                <th className="th-col-customer">Customer</th>
                 <th>Services</th>
                 <th>Pickup Date & Time</th>
                 <th>Amount</th>
@@ -1150,14 +1150,14 @@ export const AdminOrdersPage = () => {
                       <td className="chk-col" onClick={(e) => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
-                          className="orders-custom-checkbox"
+                          className="orders-custom-checkbox" 
                           checked={isChecked}
                           onChange={() => toggleSelectOrder(ord.id)}
                         />
                       </td>
 
                       {/* Order ID */}
-                      <td onClick={() => setSelectedOrderDetails(ord)}>
+                      <td className="td-col-order-id" onClick={() => setSelectedOrderDetails(ord)}>
                         <div className="order-id-meta-cell">
                           <strong className="order-id-num">
                             {(() => {
@@ -1170,11 +1170,38 @@ export const AdminOrdersPage = () => {
                       </td>
 
                       {/* Customer */}
-                      <td>
+                      <td className="td-col-customer">
                         <div className="order-customer-meta-cell">
-                          <div className="cust-circle-avatar">{ord.customer?.avatar || 'CU'}</div>
+                          <div className="cust-circle-avatar">
+                            {(() => {
+                              const rawAvatar = ord.customer?.avatar;
+                              if (typeof rawAvatar === 'string' && rawAvatar.trim() && rawAvatar.length <= 3) {
+                                return rawAvatar.trim().toUpperCase();
+                              }
+                              const nameStr = String(ord.customer?.name || ord.customer_name || '').trim();
+                              if (nameStr) {
+                                const parts = nameStr.split(/\s+/).filter(Boolean);
+                                if (parts.length >= 2) {
+                                  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+                                }
+                                return nameStr.slice(0, 2).toUpperCase();
+                              }
+                              return 'CU';
+                            })()}
+                          </div>
                           <div className="cust-text-block">
-                            <span className="cust-full-name">{ord.customer?.name || ord.customer_name || 'Customer'}</span>
+                            {(() => {
+                              const rawName = String(ord.customer?.name || ord.customer_name || 'Customer').trim();
+                              const displayName = rawName.length > 20 ? `${rawName.slice(0, 20)}...` : rawName;
+                              return (
+                                <span 
+                                  className="cust-full-name" 
+                                  title={rawName}
+                                >
+                                  {displayName}
+                                </span>
+                              );
+                            })()}
                             <span className="cust-phone-num">{ord.customer?.phone || ord.customer_phone || ''}</span>
                           </div>
                         </div>
@@ -1634,6 +1661,7 @@ export const AdminOrdersPage = () => {
 
         .orders-date-dropdown-wrapper {
           position: relative;
+          z-index: 50;
         }
 
         .orders-date-popover {
@@ -1795,9 +1823,21 @@ export const AdminOrdersPage = () => {
           accent-color: #0D7A75;
         }
 
+        .th-col-order-id, .td-col-order-id {
+          white-space: nowrap !important;
+          min-width: 120px;
+        }
+
+        .th-col-customer, .td-col-customer {
+          max-width: 220px;
+          min-width: 170px;
+          overflow: hidden;
+        }
+
         .order-id-meta-cell {
           display: flex;
           flex-direction: column;
+          white-space: nowrap !important;
         }
 
         .order-id-num {
@@ -1807,18 +1847,23 @@ export const AdminOrdersPage = () => {
           color: #0F172A;
           line-height: 1.25;
           letter-spacing: -0.01em;
+          white-space: nowrap !important;
+          display: inline-block;
         }
 
         .order-id-date-txt {
           font-size: 0.75rem;
           color: #94A3B8;
           margin-top: 3px;
+          white-space: nowrap !important;
         }
 
         .order-customer-meta-cell {
           display: flex;
           align-items: center;
           gap: 12px;
+          min-width: 0;
+          max-width: 100%;
         }
 
         .cust-circle-avatar {
@@ -1838,6 +1883,9 @@ export const AdminOrdersPage = () => {
         .cust-text-block {
           display: flex;
           flex-direction: column;
+          min-width: 0;
+          flex: 1 1 auto;
+          overflow: hidden;
         }
 
         .cust-full-name {
@@ -1845,12 +1893,22 @@ export const AdminOrdersPage = () => {
           font-weight: 700;
           color: #1E293B;
           line-height: 1.25;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 155px;
+          display: block;
         }
 
         .cust-phone-num {
           font-size: 0.75rem;
           color: #64748B;
           margin-top: 3px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 155px;
+          display: block;
         }
 
         .order-services-pill-group {

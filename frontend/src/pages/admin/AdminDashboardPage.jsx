@@ -2044,6 +2044,10 @@ export const AdminDashboardPage = () => {
           font-weight: 600;
           color: #1E293B;
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 155px;
+          display: block;
         }
 
         .services-cell-txt {

@@ -183,8 +183,10 @@ export const CustomerAuthModal = () => {
                   required 
                   className="form-input" 
                   placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.toLowerCase().replace(/\s+/g, '').replace(/(@[a-zA-Z0-9.-]+\.com)[^\s]*/gi, '$1');
+                    setEmail(cleaned);
+                  }}
                 />
               </div>
             </div>

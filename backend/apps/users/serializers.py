@@ -32,6 +32,11 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'created_at', 'is_staff', 'is_superuser')
 
     def get_profile_picture_url(self, obj):
+        if obj.profile_picture:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_picture.url)
+            return obj.profile_picture.url
         if obj.avatar:
             request = self.context.get('request')
             if str(obj.avatar).startswith('http') or str(obj.avatar).startswith('data:'):
@@ -39,11 +44,6 @@ class UserSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.avatar)
             return obj.avatar
-        if obj.profile_picture:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.profile_picture.url)
-            return obj.profile_picture.url
         return None
 
     def get_aadhaar_document_url(self, obj):
@@ -187,11 +187,14 @@ class UserSerializer(serializers.ModelSerializer):
             instance.profile_picture = None
             instance.avatar = None
 
+        new_avatar = validated_data.pop('avatar', None)
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        if 'avatar' in validated_data:
-            new_avatar = validated_data['avatar']
+        instance.save()
+
+        if new_avatar is not None:
             if new_avatar:
                 if instance.profile_picture:
                     try:
@@ -202,12 +205,14 @@ class UserSerializer(serializers.ModelSerializer):
                 instance.avatar = new_avatar
             else:
                 instance.avatar = None
+            instance.save(update_fields=['avatar', 'profile_picture'])
         elif instance.profile_picture:
             instance.avatar = instance.profile_picture.url
+            instance.save(update_fields=['avatar'])
         elif remove_pic and str(remove_pic).lower() in ['true', '1', 'yes']:
             instance.avatar = None
+            instance.save(update_fields=['avatar'])
 
-        instance.save()
         return instance
 
 
@@ -238,7 +243,15 @@ class RegisterSerializer(serializers.ModelSerializer):
         val = (value or '').strip().lower()
         if not val:
             raise serializers.ValidationError("Email address is required.")
-        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if ' ' in val:
+            raise serializers.ValidationError("Email cannot contain spaces.")
+        parts = val.split('@')
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            raise serializers.ValidationError("Please enter a valid email address (e.g., user@gmail.com).")
+        # Reject trailing characters directly attached after standard TLDs like .commmmmm
+        if re.search(r'@[a-zA-Z0-9.-]+\.com[a-zA-Z0-9]+', val):
+            raise serializers.ValidationError("Please enter a valid email address (e.g., user@gmail.com).")
+        email_regex = r'^[a-zA-Z0-9]+([._%+-][a-zA-Z0-9]+)*@[a-zA-Z0-9]+([.-][a-zA-Z0-9]+)*\.(com|org|net|edu|gov|mil|biz|info|io|co|in|ai|app|dev|me|tv|cc|tech|online|store|site|co\.in|org\.in|ac\.in|gov\.in|net\.in|[a-zA-Z]{2,4})$'
         if not re.match(email_regex, val):
             raise serializers.ValidationError("Please enter a valid email address (e.g., user@gmail.com).")
         if User.objects.filter(email__iexact=val).exists():

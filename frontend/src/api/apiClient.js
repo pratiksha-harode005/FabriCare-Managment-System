@@ -1776,12 +1776,16 @@ export const authApi = {
     const snap = await get(ref(rtdb, `users/${uid}`));
     return { data: snap.exists() ? snap.val() : null };
   },
-  updateProfile: async (data) => {
+  updateProfile: async (data, email = '') => {
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
+    const extraHeaders = isFormData ? {} : { 'Content-Type': 'application/json' };
+    if (email) {
+      extraHeaders['X-User-Email'] = email;
+    }
     const res = await fetchBackend('/api/auth/me/', {
       method: 'PATCH',
       body: isFormData ? data : JSON.stringify(data),
-      headers: isFormData ? {} : { 'Content-Type': 'application/json' }
+      headers: extraHeaders
     });
     return res || { data: null };
   }

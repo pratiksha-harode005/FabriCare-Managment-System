@@ -407,7 +407,8 @@ export const AdminDateFilterPopover = ({
         .admin-date-filter-popover-card {
           position: absolute;
           top: calc(100% + 6px);
-          width: 310px;
+          width: 350px;
+          max-width: calc(100vw - 32px);
           background: #FFFFFF;
           border: 1px solid #E2E8F0;
           border-radius: 14px;
@@ -457,7 +458,7 @@ export const AdminDateFilterPopover = ({
           background: transparent;
           border: none;
           border-radius: 7px;
-          padding: 6px 2px;
+          padding: 6px 3px;
           font-size: 0.6875rem;
           font-weight: 600;
           color: #64748B;

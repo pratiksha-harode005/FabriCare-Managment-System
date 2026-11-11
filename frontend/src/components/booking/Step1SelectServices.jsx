@@ -2232,6 +2232,8 @@ export const Step1SelectServices = () => {
           width: 100%;
           min-width: 0;
           box-sizing: border-box;
+          position: sticky;
+          top: 24px;
         }
 
         .selected-services-card {
@@ -2240,9 +2242,10 @@ export const Step1SelectServices = () => {
           border-radius: 20px;
           padding: 24px;
           box-sizing: border-box;
-          min-height: 480px;
+          height: fit-content;
           display: flex;
           flex-direction: column;
+          transition: all 0.25s ease;
         }
 
         .selected-services-header {
@@ -2277,7 +2280,6 @@ export const Step1SelectServices = () => {
           display: flex;
           flex-direction: column;
           gap: 12px;
-          flex: 1;
         }
 
         .selected-service-row-card {
@@ -2737,12 +2739,11 @@ export const Step1SelectServices = () => {
 
         .empty-sidebar-msg {
           text-align: center;
-          padding: 48px 16px;
+          padding: 36px 16px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          flex: 1;
         }
 
         .empty-icon-wrap {

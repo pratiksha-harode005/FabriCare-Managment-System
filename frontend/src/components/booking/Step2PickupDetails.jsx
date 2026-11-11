@@ -272,28 +272,78 @@ export const Step2PickupDetails = () => {
 
         {/* Right: Map Graphic & Trust Assurance Card */}
         <div className="trust-side-card">
-          <div className="folded-map-illustration">
-            <img 
-              src="/assets/folded-map.png" 
-              alt="Pickup Location Map" 
-              className="folded-map-img" 
-            />
+          {/* Hero Illustrated Map Box */}
+          <div className="trust-hero-box">
+            <div className="folded-map-illustration">
+              <img 
+                src="/assets/folded-map.png" 
+                alt="Pickup Location Map" 
+                className="folded-map-img" 
+              />
+            </div>
+            <div className="map-floating-badge">
+              <span className="live-pulse-dot" />
+              <span>Doorstep Pickup & Delivery</span>
+            </div>
           </div>
 
           <div className="trust-card-body">
-            <h3 className="trust-card-title">Don't worry!</h3>
-            <div className="trust-items-list">
-              <div className="trust-item">
-                <Truck size={20} className="trust-item-icon" strokeWidth={1.8} />
-                <span className="trust-item-text">Free pickup & delivery</span>
+            <div className="trust-title-row">
+              <h3 className="trust-card-title">Don't worry!</h3>
+              <span className="trust-verified-pill">
+                <ShieldCheck size={13} strokeWidth={2.4} />
+                <span>100% Care</span>
+              </span>
+            </div>
+            <p className="trust-card-subtitle">
+              Your garments are safe, barcoded & hygienically cleaned.
+            </p>
+
+            <div className="trust-features-list">
+              <div className="trust-feature-item">
+                <div className="trust-icon-box">
+                  <Truck size={17} strokeWidth={2} />
+                </div>
+                <div className="trust-feature-text">
+                  <span className="trust-feature-heading">Free Doorstep Pickup</span>
+                  <span className="trust-feature-sub">Dedicated executive reaches your address on time</span>
+                </div>
               </div>
-              <div className="trust-item">
-                <ShieldCheck size={20} className="trust-item-icon" strokeWidth={1.8} />
-                <span className="trust-item-text">Secure handling</span>
+
+              <div className="trust-feature-item">
+                <div className="trust-icon-box">
+                  <ShieldCheck size={17} strokeWidth={2} />
+                </div>
+                <div className="trust-feature-text">
+                  <span className="trust-feature-heading">Safe & Tagged Handling</span>
+                  <span className="trust-feature-sub">Individual wash bags & fabric-safe detergents</span>
+                </div>
               </div>
-              <div className="trust-item">
-                <Clock size={20} className="trust-item-icon" strokeWidth={1.8} />
-                <span className="trust-item-text">Real-time updates</span>
+
+              <div className="trust-feature-item">
+                <div className="trust-icon-box">
+                  <Clock size={17} strokeWidth={2} />
+                </div>
+                <div className="trust-feature-text">
+                  <span className="trust-feature-heading">Real-Time Live Updates</span>
+                  <span className="trust-feature-sub">Instant SMS & tracking from pickup to delivery</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Delivery Partner Illustration Banner */}
+            <div className="delivery-partner-badge-card">
+              <div className="partner-badge-left">
+                <span className="partner-badge-tag">Verified Partner</span>
+                <span className="partner-badge-title">FabriCare Express Fleet</span>
+                <span className="partner-badge-sub">Contactless doorstep collection available</span>
+              </div>
+              <div className="partner-badge-graphic">
+                <img 
+                  src="/images/delivery-rider.png" 
+                  alt="Delivery Rider" 
+                  className="partner-rider-img" 
+                />
               </div>
             </div>
           </div>
@@ -321,7 +371,7 @@ export const Step2PickupDetails = () => {
           display: grid;
           grid-template-columns: 1.8fr 1fr;
           gap: 24px;
-          align-items: stretch;
+          align-items: start;
         }
 
         /* Left Single Parent Card */
@@ -648,19 +698,37 @@ export const Step2PickupDetails = () => {
 
         /* Right Trust Card */
         .trust-side-card {
-          background: #F0FDF9;
+          background: #ffffff;
           border: 1.5px solid #E2E8F0;
           border-radius: 20px;
-          padding: 24px 22px;
+          padding: 20px;
           display: flex;
           flex-direction: column;
-          justify-content: flex-start;
-          gap: 24px;
+          gap: 16px;
+          box-shadow: 0 4px 20px rgba(13, 122, 117, 0.04);
+          position: sticky;
+          top: 24px;
+          height: fit-content;
+          box-sizing: border-box;
+          transition: all 0.25s ease;
+        }
+
+        /* Hero Illustrated Box */
+        .trust-hero-box {
+          background: linear-gradient(180deg, #F0FDF9 0%, #E6FAF6 100%);
+          border: 1.5px solid #CCFBF1;
+          border-radius: 16px;
+          padding: 14px 12px 12px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          position: relative;
         }
 
         .folded-map-illustration {
           width: 100%;
-          max-width: 320px;
+          max-width: 220px;
           margin: 0 auto;
           display: flex;
           align-items: center;
@@ -670,46 +738,191 @@ export const Step2PickupDetails = () => {
         .folded-map-img {
           width: 100%;
           height: auto;
-          max-height: 240px;
+          max-height: 140px;
           object-fit: contain;
           display: block;
-          filter: drop-shadow(0 12px 24px rgba(13, 122, 117, 0.1));
+          filter: drop-shadow(0 8px 18px rgba(13, 122, 117, 0.15));
         }
 
+        .map-floating-badge {
+          margin-top: 10px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #ffffff;
+          border: 1px solid #D6EFE9;
+          border-radius: 999px;
+          padding: 4px 12px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: #0D7A75;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+        }
+
+        .live-pulse-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #10B981;
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+        }
+
+        /* Trust Card Body */
         .trust-card-body {
           width: 100%;
-          margin-top: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-top: 0;
           padding-top: 0;
         }
 
-        .trust-card-title {
-          font-size: 1.125rem;
-          font-weight: 800;
-          color: #0F172A;
-          margin-bottom: 16px;
-        }
-
-        .trust-items-list {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .trust-item {
+        .trust-title-row {
           display: flex;
           align-items: center;
-          gap: 14px;
+          justify-content: space-between;
         }
 
-        .trust-item-icon {
-          color: #0D7A75;
-          flex-shrink: 0;
-        }
-
-        .trust-item-text {
-          font-size: 0.875rem;
-          font-weight: 600;
+        .trust-card-title {
+          font-size: 1.05rem;
+          font-weight: 800;
           color: #0F172A;
+          margin: 0;
+        }
+
+        .trust-verified-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: #EEFAF6;
+          border: 1px solid #BCEAE6;
+          color: #0D7A75;
+          font-size: 0.72rem;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 999px;
+        }
+
+        .trust-card-subtitle {
+          font-size: 0.775rem;
+          color: #64748B;
+          margin: -6px 0 2px 0;
+          line-height: 1.4;
+        }
+
+        .trust-features-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .trust-feature-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          padding: 9px 12px;
+          background: #F8FAFC;
+          border: 1px solid #E2E8F0;
+          border-radius: 12px;
+          transition: all 0.15s ease;
+        }
+
+        .trust-feature-item:hover {
+          background: #F0FDF9;
+          border-color: #BCEAE6;
+          transform: translateY(-1px);
+        }
+
+        .trust-icon-box {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: #E6F7F5;
+          color: #0D7A75;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          margin-top: 1px;
+        }
+
+        .trust-feature-text {
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          min-width: 0;
+        }
+
+        .trust-feature-heading {
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #0F172A;
+        }
+
+        .trust-feature-sub {
+          font-size: 0.7rem;
+          color: #64748B;
+          line-height: 1.35;
+        }
+
+        /* Delivery Partner Badge Card */
+        .delivery-partner-badge-card {
+          background: linear-gradient(135deg, #0D7A75 0%, #095955 100%);
+          border-radius: 14px;
+          padding: 12px 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          box-shadow: 0 4px 14px rgba(13, 122, 117, 0.18);
+          margin-top: 2px;
+          overflow: hidden;
+          position: relative;
+        }
+
+        .partner-badge-left {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          flex: 1;
+          z-index: 1;
+        }
+
+        .partner-badge-tag {
+          font-size: 0.625rem;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: #A7F3D0;
+        }
+
+        .partner-badge-title {
+          font-size: 0.85rem;
+          font-weight: 800;
+          color: #FFFFFF;
+        }
+
+        .partner-badge-sub {
+          font-size: 0.7rem;
+          color: #CCFBF1;
+          opacity: 0.95;
+          line-height: 1.3;
+        }
+
+        .partner-badge-graphic {
+          width: 84px;
+          height: 50px;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .partner-rider-img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25));
         }
 
         /* Bottom Footer Action */

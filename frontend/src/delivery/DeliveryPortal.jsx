@@ -4,6 +4,7 @@ import { useBooking } from '../context/BookingContext';
 import { deliveryApi, notificationsApi, authApi } from '../api/apiClient';
 import { subscribeOrders, updateFirestoreOrderStatus } from '../services/firestoreService';
 import { recordHubDropoff } from '../services/deliveryDataService';
+import { sendCustomerOtpEmail, verifyOrderOtp } from '../services/otpEmailService';
 import { 
   formatOrderId,
   isValidStrictEmail,
@@ -170,6 +171,51 @@ export const dataURItoBlob = (dataURI) => {
   }
 };
 
+export const compressImageToDataUrl = (file, maxWidth = 400, maxHeight = 400, quality = 0.85) => {
+  return new Promise((resolve) => {
+    if (!file) {
+      resolve(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (readerEvent) => {
+      const dataUrl = readerEvent.target?.result;
+      if (!dataUrl || typeof dataUrl !== 'string') {
+        resolve(null);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        try {
+          const compressed = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressed);
+        } catch (_) {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+};
+
 export const DeliveryPortal = () => {
   const { currentUser, logout, updateCurrentUserProfile, refreshProfile, refreshUserProfile } = useAuth();
   const { navigateTo } = useBooking();
@@ -181,6 +227,7 @@ export const DeliveryPortal = () => {
   // Persistent full document objects loaded from IndexedDB (survives refreshes and login sessions)
   const [persistedAadhaarDoc, setPersistedAadhaarDoc] = useState(null); // { dataUrl, fileType, fileName, fileSize }
   const [persistedPanDoc, setPersistedPanDoc] = useState(null);
+  const [persistedAvatarDoc, setPersistedAvatarDoc] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -193,6 +240,13 @@ export const DeliveryPortal = () => {
         const panRecord = await getAgentDocFromDB(`pan_${agentUid}`) || await getAgentDocFromDB(`pan_${agentEmail}`);
         if (isMounted && panRecord) {
           setPersistedPanDoc(panRecord);
+        }
+        const avatarRecord = await getAgentDocFromDB(`avatar_${agentUid}`) || await getAgentDocFromDB(`avatar_${agentEmail}`);
+        if (isMounted && avatarRecord) {
+          setPersistedAvatarDoc(avatarRecord);
+          if (avatarRecord.dataUrl) {
+            setCurrentSavedPhoto(getMediaUrl(avatarRecord.dataUrl));
+          }
         }
       } catch (err) {
         console.warn('Error reading agent docs from IndexedDB:', err);
@@ -221,7 +275,7 @@ export const DeliveryPortal = () => {
     return {
       dob: currentUser?.dob || localDocs.dob || '',
       drivingLicenceNumber: currentUser?.drivingLicenceNumber || currentUser?.driving_licence_number || localDocs.drivingLicenceNumber || localDocs.driving_licence_number || '',
-      driving_licence_number: currentUser?.driving_licence_number || currentUser?.drivingLicenceNumber || localDocs.driving_licence_number || localDocs.drivingLicenceNumber || '',
+      driving_licence_number: currentUser?.driving_licence_number || currentUser?.drivingLicenceNumber || localDocs.driving_licence_number || localDocs.driving_licence_number || '',
       aadhaarNumber: currentUser?.aadhaarNumber || currentUser?.aadhaar_number || localDocs.aadhaarNumber || localDocs.aadhaar_number || '',
       aadhaar_number: currentUser?.aadhaar_number || currentUser?.aadhaarNumber || localDocs.aadhaar_number || localDocs.aadhaarNumber || '',
       aadhaarDocumentUrl: currentUser?.aadhaarDocumentUrl || currentUser?.aadhaar_document_url || (persistedAadhaarDoc?.dataUrl) || localDocs.aadhaarDocumentUrl || localDocs.aadhaar_document_url || null,
@@ -232,10 +286,10 @@ export const DeliveryPortal = () => {
       panDocumentUrl: currentUser?.panDocumentUrl || currentUser?.pan_document_url || (persistedPanDoc?.dataUrl) || localDocs.panDocumentUrl || localDocs.pan_document_url || null,
       pan_document_url: currentUser?.pan_document_url || currentUser?.panDocumentUrl || (persistedPanDoc?.dataUrl) || localDocs.pan_document_url || localDocs.panDocumentUrl || null,
       panFileType: persistedPanDoc?.fileType || localDocs.panFileType || (String(currentUser?.panDocumentUrl || localDocs.panDocumentUrl || '').toLowerCase().includes('.pdf') || String(currentUser?.panDocumentUrl || localDocs.panDocumentUrl || '').startsWith('data:application/pdf') ? 'pdf' : 'image'),
-      profilePictureUrl: currentUser?.profilePictureUrl || currentUser?.profilePicture || storedPhoto || null,
-      profilePicture: currentUser?.profilePicture || currentUser?.profilePictureUrl || storedPhoto || null
+      profilePictureUrl: currentUser?.profilePicture || currentUser?.profilePictureUrl || storedPhoto || persistedAvatarDoc?.dataUrl || null,
+      profilePicture: currentUser?.profilePicture || currentUser?.profilePictureUrl || storedPhoto || persistedAvatarDoc?.dataUrl || null
     };
-  }, [currentUser, agentUid, agentEmail, persistedAadhaarDoc, persistedPanDoc]);
+  }, [currentUser, agentUid, agentEmail, persistedAadhaarDoc, persistedPanDoc, persistedAvatarDoc]);
 
   // Dynamic initials calculation: First Name first letter + Last Name first letter
   const getAgentInitials = (name) => {
@@ -255,25 +309,30 @@ export const DeliveryPortal = () => {
   const agentInitials = getAgentInitials(agentDisplayName);
 
   const getAgentPhoto = () => {
-    const raw = currentUser?.profilePictureUrl || currentUser?.profilePicture;
-    if (raw) return getMediaUrl(raw);
-    if (currentUser?.avatar && (currentUser.avatar.startsWith('http') || currentUser.avatar.startsWith('/media') || currentUser.avatar.startsWith('data:') || currentUser.avatar.startsWith('blob:'))) {
+    const isInvalid = (url) => !url || String(url).includes('/media/avatar.jpg');
+    const raw = currentUser?.profilePicture || currentUser?.profilePictureUrl;
+    if (raw && !isInvalid(raw)) return getMediaUrl(raw);
+    if (currentUser?.avatar && !isInvalid(currentUser.avatar) && (currentUser.avatar.startsWith('http') || currentUser.avatar.startsWith('/media') || currentUser.avatar.startsWith('data:') || currentUser.avatar.startsWith('blob:'))) {
       return getMediaUrl(currentUser.avatar);
     }
-    if (agentDocs?.profilePictureUrl) {
-      return getMediaUrl(agentDocs.profilePictureUrl);
+    if (persistedAvatarDoc?.dataUrl) {
+      return getMediaUrl(persistedAvatarDoc.dataUrl);
+    }
+    if (agentDocs?.profilePicture || agentDocs?.profilePictureUrl) {
+      const p = agentDocs.profilePicture || agentDocs.profilePictureUrl;
+      if (p && !isInvalid(p)) return getMediaUrl(p);
     }
     try {
       const direct = localStorage.getItem(`fabricare_agent_photo_${agentUid}`) ||
                      localStorage.getItem(`fabricare_agent_photo_${agentEmail}`) ||
                      localStorage.getItem('fabricare_delivery_photo');
-      if (direct) return getMediaUrl(direct);
+      if (direct && !isInvalid(direct)) return getMediaUrl(direct);
 
       const stored = localStorage.getItem('fabricare_user');
       if (stored) {
         const u = JSON.parse(stored);
-        const pic = u.profilePictureUrl || u.profilePicture || u.avatar || u.avatarUrl;
-        if (pic && !String(pic).includes('ui-avatars.com')) return getMediaUrl(pic);
+        const pic = u.profilePicture || u.profilePictureUrl || u.avatar || u.avatarUrl;
+        if (pic && !String(pic).includes('ui-avatars.com') && !isInvalid(pic)) return getMediaUrl(pic);
       }
     } catch {}
     return null;
@@ -283,10 +342,10 @@ export const DeliveryPortal = () => {
 
   useEffect(() => {
     const p = getAgentPhoto();
-    if (p !== undefined) {
+    if (p !== undefined && p !== null) {
       setCurrentSavedPhoto(p);
     }
-  }, [currentUser?.profilePicture, currentUser?.profilePictureUrl, currentUser?.avatar, agentDocs?.profilePictureUrl]);
+  }, [currentUser?.profilePicture, currentUser?.profilePictureUrl, currentUser?.avatar, agentDocs?.profilePictureUrl, persistedAvatarDoc]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -395,6 +454,116 @@ export const DeliveryPortal = () => {
   const [failureReason, setFailureReason] = useState('Customer unavailable');
   const [failureComment, setFailureComment] = useState('');
   const [submittingFail, setSubmittingFail] = useState(false);
+
+  // Real Email OTP State (EmailJS Integration)
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [otpSentMessage, setOtpSentMessage] = useState('');
+  const [modalCustomerEmail, setModalCustomerEmail] = useState('');
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+
+  // Auto-send Real OTP to Customer Email when Pickup Modal opens
+  useEffect(() => {
+    setIsEditingEmail(false);
+    if (!pickupModalOrder) {
+      setOtpSentMessage('');
+      setModalCustomerEmail('');
+      return;
+    }
+    setOtpError('');
+    setAgentOtp('');
+    const email = pickupModalOrder.customer_email || pickupModalOrder.customerEmail || pickupModalOrder.orderData?.customerEmail || pickupModalOrder.orderData?.customer_email || pickupModalOrder.customer?.email || 'customer@gmail.com';
+    setModalCustomerEmail(email);
+
+    const dispatchPickupOtp = async () => {
+      setSendingOtp(true);
+      try {
+        const orderId = pickupModalOrder.orderId || pickupModalOrder.order_id || pickupModalOrder.id || pickupModalOrder.order_number;
+        const res = await sendCustomerOtpEmail({
+          orderId,
+          orderCode: pickupModalOrder.order_number || pickupModalOrder.code || orderId,
+          customerEmail: email,
+          customerName: pickupModalOrder.customer_name || pickupModalOrder.customerName || 'Customer',
+          taskType: 'pickup'
+        });
+        if (res.sent) {
+          setOtpSentMessage(`4-digit OTP sent to ${res.email}`);
+        } else if (res.simulated) {
+          setOtpSentMessage(`[Demo Mode] OTP: ${res.otp} (Sent to ${res.email})`);
+        }
+      } catch (err) {
+        console.warn('Auto send pickup OTP error:', err);
+      } finally {
+        setSendingOtp(false);
+      }
+    };
+    dispatchPickupOtp();
+  }, [pickupModalOrder]);
+
+  // Auto-send Real OTP to Customer Email when Delivery Modal opens
+  useEffect(() => {
+    setIsEditingEmail(false);
+    if (!deliveryModalOrder) {
+      setOtpSentMessage('');
+      setModalCustomerEmail('');
+      return;
+    }
+    setOtpError('');
+    setAgentOtp('');
+    const email = deliveryModalOrder.customer_email || deliveryModalOrder.customerEmail || deliveryModalOrder.orderData?.customerEmail || deliveryModalOrder.orderData?.customer_email || deliveryModalOrder.customer?.email || 'customer@gmail.com';
+    setModalCustomerEmail(email);
+
+    const dispatchDeliveryOtp = async () => {
+      setSendingOtp(true);
+      try {
+        const orderId = deliveryModalOrder.orderId || deliveryModalOrder.order_id || deliveryModalOrder.id || deliveryModalOrder.order_number;
+        const res = await sendCustomerOtpEmail({
+          orderId,
+          orderCode: deliveryModalOrder.order_number || deliveryModalOrder.code || orderId,
+          customerEmail: email,
+          customerName: deliveryModalOrder.customer_name || deliveryModalOrder.customerName || 'Customer',
+          taskType: 'delivery'
+        });
+        if (res.sent) {
+          setOtpSentMessage(`4-digit OTP sent to ${res.email}`);
+        } else if (res.simulated) {
+          setOtpSentMessage(`[Demo Mode] OTP: ${res.otp} (Sent to ${res.email})`);
+        }
+      } catch (err) {
+        console.warn('Auto send delivery OTP error:', err);
+      } finally {
+        setSendingOtp(false);
+      }
+    };
+    dispatchDeliveryOtp();
+  }, [deliveryModalOrder]);
+
+  // Manual Trigger to Resend Real OTP to Customer Email
+  const handleSendOrResendOtp = async (taskType = 'pickup') => {
+    const activeOrder = taskType === 'delivery' ? deliveryModalOrder : pickupModalOrder;
+    if (!activeOrder) return;
+    setSendingOtp(true);
+    setOtpError('');
+    try {
+      const orderId = activeOrder.orderId || activeOrder.order_id || activeOrder.id || activeOrder.order_number;
+      const email = modalCustomerEmail || activeOrder.customer_email || activeOrder.customerEmail || 'customer@gmail.com';
+      const res = await sendCustomerOtpEmail({
+        orderId,
+        orderCode: activeOrder.order_number || activeOrder.code || orderId,
+        customerEmail: email,
+        customerName: activeOrder.customer_name || activeOrder.customerName || 'Customer',
+        taskType
+      });
+      if (res.sent) {
+        setOtpSentMessage(`Fresh OTP sent to ${res.email} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+      } else if (res.simulated) {
+        setOtpSentMessage(`[Demo Mode] Fresh OTP: ${res.otp} (Sent to ${res.email})`);
+      }
+    } catch (err) {
+      setOtpError('Failed to send OTP email: ' + (err.message || 'Network error'));
+    } finally {
+      setSendingOtp(false);
+    }
+  };
 
   // Persistent tracking of reported/rescheduled tasks
   const [reportedTasks, setReportedTasks] = useState(() => {
@@ -1046,13 +1215,14 @@ export const DeliveryPortal = () => {
     profileImagePreview || 
     currentSavedPhoto || 
     agentPhoto || 
+    persistedAvatarDoc?.dataUrl ||
     currentUser?.profilePicture || 
     currentUser?.profilePictureUrl || 
     currentUser?.avatar ||
     currentUser?.avatarUrl ||
     agentDocs?.profilePictureUrl
   );
-  const activeSavedPhoto = currentSavedPhoto !== undefined ? currentSavedPhoto : agentPhoto;
+  const activeSavedPhoto = currentSavedPhoto || agentPhoto || persistedAvatarDoc?.dataUrl || null;
   const displayAvatarPhoto = isEditingProfile 
     ? (removeProfileImage ? null : (profileImagePreview ? getMediaUrl(profileImagePreview) : activeSavedPhoto))
     : activeSavedPhoto;
@@ -1062,10 +1232,13 @@ export const DeliveryPortal = () => {
     setProfileImagePreview(null);
     setRemoveProfileImage(true);
     setCurrentSavedPhoto(null);
+    setPersistedAvatarDoc(null);
     try {
       localStorage.removeItem(`fabricare_agent_photo_${agentUid}`);
       localStorage.removeItem(`fabricare_agent_photo_${agentEmail}`);
       localStorage.removeItem('fabricare_delivery_photo');
+      saveAgentDocToDB(`avatar_${agentUid}`, null);
+      saveAgentDocToDB(`avatar_${agentEmail}`, null);
       const docKey = `fabricare_agent_docs_${agentUid}`;
       const existingDocs = JSON.parse(localStorage.getItem(docKey) || '{}');
       delete existingDocs.profilePictureUrl;
@@ -1341,6 +1514,16 @@ export const DeliveryPortal = () => {
       setProfileImageFile(file);
       setProfileImagePreview(URL.createObjectURL(file));
       setRemoveProfileImage(false);
+
+      // Pre-compress and persist preview in IndexedDB immediately for instant resilience
+      compressImageToDataUrl(file).then(async (compressed) => {
+        if (compressed) {
+          const rec = { dataUrl: compressed, fileName: file.name, updatedAt: new Date().toISOString() };
+          setPersistedAvatarDoc(rec);
+          await saveAgentDocToDB(`avatar_${agentUid}`, rec);
+          await saveAgentDocToDB(`avatar_${agentEmail}`, rec);
+        }
+      });
     } else if (type === 'aadhaar') {
       if (!validDocMimeTypes.includes(file.type) && !hasValidDocExt) {
         setProfileFormErrors(prev => ({ ...prev, aadhaarDocument: 'Unsupported file format. Accept only JPG, JPEG, PNG, or PDF.' }));
@@ -1489,12 +1672,15 @@ export const DeliveryPortal = () => {
       let base64ProfileImg = null;
       if (profileImageFile) {
         try {
-          base64ProfileImg = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(profileImageFile);
-          });
+          base64ProfileImg = await compressImageToDataUrl(profileImageFile, 400, 400, 0.85);
+          if (!base64ProfileImg) {
+            base64ProfileImg = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = () => resolve(null);
+              reader.readAsDataURL(profileImageFile);
+            });
+          }
         } catch {}
       }
 
@@ -1562,7 +1748,7 @@ export const DeliveryPortal = () => {
 
       let updated = null;
       try {
-        const res = await authApi.updateProfile(formData);
+        const res = await authApi.updateProfile(formData, cleanEmail);
         updated = res?.data;
       } catch (apiErr) {
         console.warn('API updateProfile failed, falling back to local persistence:', apiErr);
@@ -1575,11 +1761,17 @@ export const DeliveryPortal = () => {
           localStorage.removeItem(`fabricare_agent_photo_${agentUid}`);
           localStorage.removeItem(`fabricare_agent_photo_${agentEmail}`);
           localStorage.removeItem('fabricare_delivery_photo');
+          await saveAgentDocToDB(`avatar_${agentUid}`, null);
+          await saveAgentDocToDB(`avatar_${agentEmail}`, null);
+          setPersistedAvatarDoc(null);
         } catch (_) {}
-      } else if (updated?.profile_picture_url || updated?.profile_picture) {
-        finalProfilePic = getMediaUrl(updated.profile_picture_url || updated.profile_picture);
+      } else if (updated?.profile_picture || updated?.profile_picture_url) {
+        const candidate = updated.profile_picture || updated.profile_picture_url;
+        finalProfilePic = getMediaUrl(candidate);
       } else if (base64ProfileImg) {
         finalProfilePic = base64ProfileImg;
+      } else if (persistedAvatarDoc?.dataUrl) {
+        finalProfilePic = persistedAvatarDoc.dataUrl;
       } else if (profileImagePreview && !profileImagePreview.startsWith('blob:')) {
         finalProfilePic = profileImagePreview;
       } else {
@@ -1591,6 +1783,10 @@ export const DeliveryPortal = () => {
           localStorage.setItem(`fabricare_agent_photo_${agentUid}`, finalProfilePic);
           localStorage.setItem(`fabricare_agent_photo_${agentEmail}`, finalProfilePic);
           localStorage.setItem('fabricare_delivery_photo', finalProfilePic);
+          const avatarRec = { dataUrl: finalProfilePic, updatedAt: new Date().toISOString() };
+          setPersistedAvatarDoc(avatarRec);
+          await saveAgentDocToDB(`avatar_${agentUid}`, avatarRec);
+          await saveAgentDocToDB(`avatar_${agentEmail}`, avatarRec);
         } catch (_) {}
       }
 
@@ -1977,6 +2173,8 @@ export const DeliveryPortal = () => {
     const customerName = (rawCustName && rawCustName.trim().toLowerCase() !== 'customer') ? rawCustName.trim() : 'Customer';
     const rawCustPhone = (typeof customerObj === 'object' ? customerObj.phone : '') || t.customer_phone || t.pickup_phone || t.orderData?.customerPhone || t.customerPhone || '';
     const customerPhone = (rawCustPhone && rawCustPhone !== '-') ? rawCustPhone : '+91 98765 43210';
+    const rawCustEmail = (typeof customerObj === 'object' ? customerObj.email : '') || t.customer_email || t.customerEmail || t.pickup_email || t.orderData?.customerEmail || t.orderData?.customer_email || t.orderData?.customer?.email || '';
+    const customerEmail = rawCustEmail ? String(rawCustEmail).trim() : '';
 
     // 3. Address parsing
     const addrObj = (typeof t.address === 'object' && t.address !== null) ? t.address :
@@ -2198,6 +2396,8 @@ export const DeliveryPortal = () => {
       pickup_full_name: customerName,
       customer_phone: customerPhone,
       pickup_phone: customerPhone,
+      customer_email: customerEmail,
+      customerEmail: customerEmail,
       type: resolvedType,
       raw_type: isPickupType ? 'pickup' : 'delivery',
       raw_status: resolvedStatus,
@@ -2947,10 +3147,29 @@ export const DeliveryPortal = () => {
   const handleConfirmPickup = async (e) => {
     e.preventDefault();
     if (!pickupModalOrder) return;
-    setSubmittingPickup(true);
     setOtpError('');
+
+    const cleanOtp = (agentOtp || '').trim();
+    if (!cleanOtp) {
+      setOtpError('Customer 4-digit OTP is required.');
+      return;
+    }
+    if (cleanOtp.length !== 4) {
+      setOtpError('OTP must be exactly 4 digits.');
+      return;
+    }
+
+    setSubmittingPickup(true);
     const id = pickupModalOrder.id;
-    const otpCode = agentOtp.trim() || '1234';
+    const targetOrderId = pickupModalOrder.orderId || pickupModalOrder.order_id || pickupModalOrder.id || id;
+
+    // Real OTP verification
+    const verification = await verifyOrderOtp(targetOrderId, cleanOtp, 'pickup');
+    if (!verification.valid) {
+      setOtpError(verification.message || "Invalid OTP. Please ask customer for the 4-digit code sent to their email.");
+      setSubmittingPickup(false);
+      return;
+    }
 
     try {
       if (pickupModalOrder.raw_status === 'assigned' || pickupModalOrder.status === 'PICKUP_ASSIGNED') {
@@ -2962,7 +3181,7 @@ export const DeliveryPortal = () => {
       }
       try {
         await deliveryApi.completeTask(id, {
-          otp: otpCode,
+          otp: cleanOtp,
           notes: pickupNotes
         });
       } catch (apiErr) {
@@ -3120,10 +3339,29 @@ export const DeliveryPortal = () => {
   const handleConfirmDelivery = async (e) => {
     e.preventDefault();
     if (!deliveryModalOrder) return;
-    setSubmittingDelivery(true);
     setOtpError('');
+
+    const cleanOtp = (agentOtp || '').trim();
+    if (!cleanOtp) {
+      setOtpError('Customer 4-digit OTP is required.');
+      return;
+    }
+    if (cleanOtp.length !== 4) {
+      setOtpError('OTP must be exactly 4 digits.');
+      return;
+    }
+
+    setSubmittingDelivery(true);
     const id = deliveryModalOrder.id;
-    const otpCode = agentOtp.trim() || '1234';
+    const targetOrderId = deliveryModalOrder.orderId || deliveryModalOrder.order_id || deliveryModalOrder.id || id;
+
+    // Real OTP verification
+    const verification = await verifyOrderOtp(targetOrderId, cleanOtp, 'delivery');
+    if (!verification.valid) {
+      setOtpError(verification.message || "Invalid OTP. Please ask customer for the 4-digit code sent to their email.");
+      setSubmittingDelivery(false);
+      return;
+    }
 
     try {
       if (deliveryModalOrder.raw_status === 'assigned' || deliveryModalOrder.status === 'READY_FOR_DELIVERY') {
@@ -3135,7 +3373,7 @@ export const DeliveryPortal = () => {
       }
       try {
         await deliveryApi.completeTask(id, {
-          otp: otpCode,
+          otp: cleanOtp,
           notes: deliveryNotes
         });
       } catch (apiErr) {
@@ -5156,7 +5394,7 @@ export const DeliveryPortal = () => {
                     <thead>
                       <tr>
                         <th style={{ width: '90px' }}>ORDER ID</th>
-                        <th style={{ width: '145px' }}>CUSTOMER</th>
+                        <th className="col-customer" style={{ width: '145px' }}>CUSTOMER</th>
                         <th style={{ width: '155px' }}>PICKUP AREA</th>
                         <th style={{ width: '95px' }}>ITEMS & WT</th>
                         <th style={{ width: '130px' }}>SCHEDULE & SLOT</th>
@@ -5211,15 +5449,21 @@ export const DeliveryPortal = () => {
                             </td>
 
                             {/* 2. Customer (Name and number only, no profile avatar) */}
-                            <td>
+                            <td className="col-customer">
                               <div className="pickup-cust-simple-info">
-                                <span className="pickup-cust-name-text">
-                                  {customerName}
-                                </span>
+                                {(() => {
+                                  const rawName = String(customerName || 'Customer').trim();
+                                  const displayName = rawName.length > 20 ? `${rawName.slice(0, 20)}...` : rawName;
+                                  return (
+                                    <span className="pickup-cust-name-text" title={rawName}>
+                                      {displayName}
+                                    </span>
+                                  );
+                                })()}
                                 <a 
                                   href={`tel:${customerPhone}`}
                                   className="pickup-cust-phone-link"
-                                  title="Call customer directly"
+                                  title={customerPhone && customerPhone !== '-' ? `Call ${customerPhone}` : "Call customer directly"}
                                 >
                                   <Phone size={11} />
                                   <span>{customerPhone}</span>
@@ -5502,7 +5746,7 @@ export const DeliveryPortal = () => {
                     <thead>
                       <tr>
                         <th style={{ width: '90px' }}>ORDER ID</th>
-                        <th style={{ width: '150px' }}>CUSTOMER</th>
+                        <th className="col-customer" style={{ width: '150px' }}>CUSTOMER</th>
                         <th style={{ width: '135px' }}>DELIVERY AREA</th>
                         <th style={{ width: '120px' }}>AMOUNT & BAGS</th>
                         <th style={{ width: '135px' }}>SCHEDULE & SLOT</th>
@@ -5556,15 +5800,21 @@ export const DeliveryPortal = () => {
                             </td>
 
                             {/* 2. Customer (Name and number only, no avatar box) */}
-                            <td>
+                            <td className="col-customer">
                               <div className="pickup-cust-simple-info">
-                                <span className="pickup-cust-name-text">
-                                  {customerName}
-                                </span>
+                                {(() => {
+                                  const rawName = String(customerName || 'Customer').trim();
+                                  const displayName = rawName.length > 20 ? `${rawName.slice(0, 20)}...` : rawName;
+                                  return (
+                                    <span className="pickup-cust-name-text" title={rawName}>
+                                      {displayName}
+                                    </span>
+                                  );
+                                })()}
                                 <a 
                                   href={`tel:${customerPhone}`}
                                   className="pickup-cust-phone-link"
-                                  title="Call customer directly"
+                                  title={customerPhone && customerPhone !== '-' ? `Call ${customerPhone}` : "Call customer directly"}
                                 >
                                   <Phone size={11} />
                                   <span>{customerPhone}</span>
@@ -7264,6 +7514,104 @@ export const DeliveryPortal = () => {
             </div>
 
             <form onSubmit={handleConfirmPickup} className="space-y-4">
+              {/* Customer Email & Real OTP Status Banner */}
+              <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '12px', padding: '10px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '220px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16A34A', display: 'inline-block', flexShrink: 0 }} />
+                    {isEditingEmail ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, flexWrap: 'wrap' }}>
+                        <input
+                          type="email"
+                          value={modalCustomerEmail}
+                          onChange={(e) => setModalCustomerEmail(e.target.value)}
+                          placeholder="Enter your real email..."
+                          style={{
+                            padding: '3px 8px',
+                            fontSize: '0.8rem',
+                            border: '1.5px solid #16A34A',
+                            borderRadius: '6px',
+                            outline: 'none',
+                            background: '#FFFFFF',
+                            width: '100%',
+                            maxWidth: '220px'
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingEmail(false);
+                            handleSendOrResendOtp('pickup');
+                          }}
+                          style={{
+                            background: '#16A34A',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 10px',
+                            fontSize: '0.725rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Send to this email
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#166534' }}>
+                          OTP Sent to: <strong style={{ color: '#14532D' }}>{modalCustomerEmail || pickupModalOrder.customer_email || 'Customer Email'}</strong>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingEmail(true)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#0D7A75',
+                            fontSize: '0.725rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            padding: '0 4px'
+                          }}
+                          title="Change to your real email address"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSendOrResendOtp('pickup')}
+                    disabled={sendingOtp}
+                    style={{
+                      background: '#FFFFFF',
+                      border: '1px solid #86EFAC',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: '#15803D',
+                      cursor: sendingOtp ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    {sendingOtp ? <RefreshCw size={12} className="animate-spin" /> : <Mail size={12} />}
+                    <span>{sendingOtp ? 'Sending...' : 'Resend OTP to Email'}</span>
+                  </button>
+                </div>
+                {otpSentMessage && (
+                  <p style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: 600, marginTop: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <CheckCircle2 size={13} style={{ color: '#16A34A', flexShrink: 0 }} />
+                    <span>{otpSentMessage}</span>
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label className="form-label font-bold text-navy">Customer 4-Digit OTP *</label>
                 <input
@@ -7272,10 +7620,16 @@ export const DeliveryPortal = () => {
                   maxLength={4}
                   placeholder="Enter 4-digit OTP"
                   value={agentOtp}
-                  onChange={(e) => setAgentOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  onChange={(e) => {
+                    setAgentOtp(e.target.value.replace(/\D/g, '').slice(0, 4));
+                    if (otpError) setOtpError('');
+                  }}
                   className="form-input font-mono font-bold text-lg text-center tracking-widest"
                 />
-                {otpError && <p className="text-xs text-rose-500 mt-1">{otpError}</p>}
+                {otpError && <p className="text-xs font-semibold text-rose-500 mt-1">⚠ {otpError}</p>}
+                <p style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '4px' }}>
+                  Ask customer for the 4-digit OTP received on their email.
+                </p>
               </div>
 
               <div>
@@ -7452,6 +7806,104 @@ export const DeliveryPortal = () => {
             </div>
 
             <form onSubmit={handleConfirmDelivery} className="space-y-4">
+              {/* Customer Email & Real OTP Status Banner */}
+              <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '12px', padding: '10px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '220px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16A34A', display: 'inline-block', flexShrink: 0 }} />
+                    {isEditingEmail ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, flexWrap: 'wrap' }}>
+                        <input
+                          type="email"
+                          value={modalCustomerEmail}
+                          onChange={(e) => setModalCustomerEmail(e.target.value)}
+                          placeholder="Enter your real email..."
+                          style={{
+                            padding: '3px 8px',
+                            fontSize: '0.8rem',
+                            border: '1.5px solid #16A34A',
+                            borderRadius: '6px',
+                            outline: 'none',
+                            background: '#FFFFFF',
+                            width: '100%',
+                            maxWidth: '220px'
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingEmail(false);
+                            handleSendOrResendOtp('delivery');
+                          }}
+                          style={{
+                            background: '#16A34A',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 10px',
+                            fontSize: '0.725rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Send to this email
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#166534' }}>
+                          OTP Sent to: <strong style={{ color: '#14532D' }}>{modalCustomerEmail || deliveryModalOrder.customer_email || 'Customer Email'}</strong>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingEmail(true)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#0D7A75',
+                            fontSize: '0.725rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            padding: '0 4px'
+                          }}
+                          title="Change to your real email address"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSendOrResendOtp('delivery')}
+                    disabled={sendingOtp}
+                    style={{
+                      background: '#FFFFFF',
+                      border: '1px solid #86EFAC',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: '#15803D',
+                      cursor: sendingOtp ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    {sendingOtp ? <RefreshCw size={12} className="animate-spin" /> : <Mail size={12} />}
+                    <span>{sendingOtp ? 'Sending...' : 'Resend OTP to Email'}</span>
+                  </button>
+                </div>
+                {otpSentMessage && (
+                  <p style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: 600, marginTop: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <CheckCircle2 size={13} style={{ color: '#16A34A', flexShrink: 0 }} />
+                    <span>{otpSentMessage}</span>
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label className="form-label font-bold text-navy">Customer 4-Digit OTP *</label>
                 <input
@@ -7460,10 +7912,16 @@ export const DeliveryPortal = () => {
                   maxLength={4}
                   placeholder="Enter 4-digit OTP"
                   value={agentOtp}
-                  onChange={(e) => setAgentOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  onChange={(e) => {
+                    setAgentOtp(e.target.value.replace(/\D/g, '').slice(0, 4));
+                    if (otpError) setOtpError('');
+                  }}
                   className="form-input font-mono font-bold text-lg text-center tracking-widest"
                 />
-                {otpError && <p className="text-xs text-rose-500 mt-1">{otpError}</p>}
+                {otpError && <p className="text-xs font-semibold text-rose-500 mt-1">⚠ {otpError}</p>}
+                <p style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '4px' }}>
+                  Ask customer for the 4-digit OTP received on their email upon delivery.
+                </p>
               </div>
 
               <div>
@@ -9212,15 +9670,6 @@ export const DeliveryPortal = () => {
                   title="Download document copy"
                 >
                   <Download size={16} />
-                </a>
-                <a 
-                  href={docViewerModal.url} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="p-1.5 text-slate-500 hover:text-[#0D7A75] rounded-lg transition-colors"
-                  title="Open in new window"
-                >
-                  <ExternalLink size={16} />
                 </a>
                 <button
                   type="button"

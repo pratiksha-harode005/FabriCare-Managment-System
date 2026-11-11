@@ -343,14 +343,24 @@ export const Navbar = () => {
                       userProfile?.displayName ? userProfile.displayName.substring(0, 2).toUpperCase() : 'CU'
                     )}
                   </div>
-                  <span className="nav-user-name">{userProfile?.displayName?.split(' ')[0] || 'Customer'}</span>
+                  <span className="nav-user-name" title={userProfile?.displayName || 'Customer'}>
+                    {(() => {
+                      const rawFirst = (userProfile?.displayName?.split(' ')[0] || 'Customer').trim();
+                      return rawFirst.length > 14 ? `${rawFirst.slice(0, 14)}...` : rawFirst;
+                    })()}
+                  </span>
                 </button>
 
                 {profileDropdownOpen && (
                   <div className="nav-dropdown-card animate-fade-in">
                     <div className="dropdown-user-info">
-                      <p className="dropdown-name">{userProfile?.displayName || 'Customer'}</p>
-                      <p className="dropdown-email">{currentUser?.email}</p>
+                      <p className="dropdown-name" title={userProfile?.displayName || 'Customer'}>
+                        {(() => {
+                          const rawName = (userProfile?.displayName || 'Customer').trim();
+                          return rawName.length > 22 ? `${rawName.slice(0, 22)}...` : rawName;
+                        })()}
+                      </p>
+                      <p className="dropdown-email" title={currentUser?.email || ''}>{currentUser?.email}</p>
                       <span style={{ display: 'inline-block', marginTop: 4, padding: '2px 8px', borderRadius: 999, fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', background: isAdmin ? '#FEF3C7' : isDeliveryAgent ? '#DBEAFE' : isLaundryStaff ? '#EDE9FE' : '#ECFDF5', color: isAdmin ? '#B45309' : isDeliveryAgent ? '#1D4ED8' : isLaundryStaff ? '#6D28D9' : '#059669' }}>
                         {isAdmin ? '👑 Administrator' : isDeliveryAgent ? '🚚 Delivery Agent' : isLaundryStaff ? '✨ Laundry Staff' : '👤 Customer'}
                       </span>
@@ -964,6 +974,13 @@ export const Navbar = () => {
           padding: 4px 10px 4px 4px;
           border-radius: 999px;
           cursor: pointer;
+          max-width: 180px;
+          transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .user-profile-btn:hover {
+          background: #F1F5F9;
+          border-color: #CBD5E1;
         }
 
         .nav-user-avatar {
@@ -993,6 +1010,11 @@ export const Navbar = () => {
           font-size: 0.8125rem;
           font-weight: 600;
           color: #1E293B;
+          max-width: 110px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: inline-block;
         }
 
         .nav-dropdown-card {
@@ -1002,26 +1024,42 @@ export const Navbar = () => {
           background: #FFFFFF;
           border: 1px solid #E2E8F0;
           border-radius: 14px;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-          width: 200px;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+          width: 230px;
+          max-width: calc(100vw - 32px);
           padding: 12px;
           z-index: 1001;
+          box-sizing: border-box;
         }
 
         .dropdown-user-info {
           padding-bottom: 8px;
+          min-width: 0;
+          overflow: hidden;
         }
 
         .dropdown-name {
           font-size: 0.875rem;
           font-weight: 700;
           color: #1E293B;
+          line-height: 1.3;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: block;
+          max-width: 100%;
         }
 
         .dropdown-email {
           font-size: 0.75rem;
           color: #64748B;
-          word-break: break-all;
+          line-height: 1.35;
+          margin-top: 2px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: block;
+          max-width: 100%;
         }
 
         .dropdown-divider {

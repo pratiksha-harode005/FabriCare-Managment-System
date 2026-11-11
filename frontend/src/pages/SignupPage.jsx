@@ -67,12 +67,29 @@ export const SignupPage = () => {
 
   // 2. Email Address Validator: Proper email format (e.g. user@gmail.com)
   const validateEmail = (val) => {
-    const trimmed = (val || '').trim();
+    const trimmed = (val || '').trim().toLowerCase();
     if (!trimmed) {
       return 'Please enter your email address.';
     }
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(trimmed)) {
+    if (/\s/.test(trimmed)) {
+      return 'Email address cannot contain spaces.';
+    }
+    const parts = trimmed.split('@');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      return 'Please enter a valid email address (e.g., user@gmail.com).';
+    }
+
+    const [localPart, domainPart] = parts;
+    if (!/^[a-zA-Z0-9]+([._%+-][a-zA-Z0-9]+)*$/.test(localPart)) {
+      return 'Please enter a valid email username (e.g., user@gmail.com).';
+    }
+    if (!domainPart.includes('.')) {
+      return 'Email domain must include an extension like .com (e.g., user@gmail.com).';
+    }
+
+    // Strict regex: valid domain and standard TLDs, no trailing characters after .com
+    const strictEmailRegex = /^[a-zA-Z0-9]+([._%+-][a-zA-Z0-9]+)*@[a-zA-Z0-9]+([.-][a-zA-Z0-9]+)*\.(com|in|org|net|edu|gov|io|co|biz|info|me|co\.in|org\.in|ac\.in|gov\.in|net\.in|[a-zA-Z]{2,4})$/i;
+    if (!strictEmailRegex.test(trimmed) || /@[a-zA-Z0-9.-]+\.com[a-zA-Z0-9]+/i.test(trimmed)) {
       return 'Please enter a valid email address (e.g., user@gmail.com).';
     }
     return '';
@@ -126,7 +143,12 @@ export const SignupPage = () => {
   };
 
   const handleEmailChange = (e) => {
-    const val = e.target.value;
+    // 1. Lowercase and remove any whitespace
+    let val = e.target.value.toLowerCase().replace(/\s+/g, '');
+
+    // 2. Prevent entering or typing characters after .com in the domain (e.g. user@gmail.com)
+    val = val.replace(/(@[a-zA-Z0-9.-]+\.com)[^\s]*/gi, '$1');
+
     setEmail(val);
     if (touched.email) {
       setFieldErrors(prev => ({ ...prev, email: validateEmail(val) }));
@@ -399,6 +421,7 @@ export const SignupPage = () => {
                   <input
                     type="email"
                     required
+                    maxLength={60}
                     className="auth-input-control"
                     placeholder="e.g. user@gmail.com"
                     value={email}
