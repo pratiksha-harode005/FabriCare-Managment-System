@@ -38,13 +38,7 @@ export class ApiError extends Error {
   }
 }
 
-const configuredBackend = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_BACKEND_URL) ? import.meta.env.VITE_BACKEND_URL : null;
-const BACKEND_BASES = [
-  ...(configuredBackend ? [configuredBackend.replace(/\/+$/, '')] : []),
-  'https://fabricare-management-system-backend.vercel.app',
-  'http://127.0.0.1:8000',
-  'http://127.0.0.1:8001'
-];
+const BACKEND_BASES = ['http://127.0.0.1:8000', 'http://127.0.0.1:8001'];
 
 export const fetchBackend = async (path, options = {}) => {
   const token = (typeof localStorage !== 'undefined' ? localStorage.getItem('fabricare_token') : null) || 

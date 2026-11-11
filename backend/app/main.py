@@ -33,7 +33,6 @@ if not origins:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,16 +73,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 # Health check
-@app.get("/")
 @app.get("/health")
 @app.get("/api/v1/health")
 def health_check():
-    return {
-        "service": "FabriCare API",
-        "status": "ok",
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
+    return {"status": "ok"}
 
 
 # Mount API v1 Routers
